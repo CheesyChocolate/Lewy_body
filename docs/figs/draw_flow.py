@@ -6,109 +6,173 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
 def draw_workflow():
-    """Shows the end-to-end training and evaluation workflow."""
-    dot = graphviz.Digraph(comment="Training Workflow", format="png")
-    dot.attr(rankdir="TB", dpi="300", nodesep="0.5", ranksep="0.6")
-
-    # Global styles
+    """
+    Shows the end-to-end analysis workflow for the LBD multi-omics project,
+    corresponding to the four methodological stages in the proposal:
+      Stage 1 – Data Acquisition & Harmonisation
+      Stage 2 – Single-Layer Analysis
+      Stage 3 – Multi-Omics Integration
+      Stage 4 – Downstream Analysis & Validation
+    """
+    dot = graphviz.Digraph(comment="LBD Multi-Omics Analysis Workflow", format="png")
+    dot.attr(rankdir="TB", dpi="300", nodesep="0.5", ranksep="0.65")
     dot.attr("node", fontname="Helvetica", fontsize="11")
     dot.attr("edge", fontname="Helvetica", fontsize="9")
 
-    # --- Nodes Definition ---
-
-    # Data Preparation
+    # ------------------------------------------------------------------ #
+    # Stage 1 – Data Acquisition & Harmonisation                          #
+    # ------------------------------------------------------------------ #
     dot.node(
-        "Config",
-        """Configuration
-(.env, benchmark.py)""",
+        "DataSources",
+        "Data Acquisition\n(AMP-PD · UK Biobank · GEO\nNIAGADS · MetaboLights/GNPS)",
         shape="cylinder",
         style="filled",
         fillcolor="#BBDEFB",
     )
     dot.node(
-        "DownloadData",
-        """Dataset Download/Load
-(Hugging Face, Local Cache)""",
-        shape="rect",
-        style="filled",
-        fillcolor="#E3F2FD",
-    )
-    dot.node(
-        "PreprocessData",
-        """Data Preprocessing
-(COCO, YOLO Conversion, Mask Placeholders)""",
+        "Harmonise",
+        "Harmonisation\n(QC · Ancestry PCs · ComBat\nNormalisation · Sample Matching)",
         shape="parallelogram",
         style="filled",
         fillcolor="#E3F2FD",
     )
 
-    # Model Setup
+    # ------------------------------------------------------------------ #
+    # Stage 2 – Single-Layer Analysis (parallel branches)                 #
+    # ------------------------------------------------------------------ #
     dot.node(
-        "ModelInit",
-        """Model Initialization
-(Pre-trained weights, Backbone)""",
+        "Genomics",
+        "Genomics\n(PRS · Rare-Variant\nBurden Tests)",
         shape="rect",
         style="filled",
         fillcolor="#C8E6C9",
     )
     dot.node(
-        "HeadAdapt",
-        """Model Head Adaptation
-(12 classes)""",
-        shape="component",
+        "Epigenomics",
+        "Epigenomics\n(EWAS · DMP/DMR\nlimma + DMRcate)",
+        shape="rect",
+        style="filled",
+        fillcolor="#C8E6C9",
+    )
+    dot.node(
+        "Transcriptomics",
+        "Transcriptomics\n(DESeq2 · GSEA\nReactome / MSigDB)",
+        shape="rect",
+        style="filled",
+        fillcolor="#C8E6C9",
+    )
+    dot.node(
+        "Metabolomics",
+        "Metabolomics\n(PLS-DA · OPLS-DA\nMetaboAnalyst)",
+        shape="rect",
+        style="filled",
+        fillcolor="#C8E6C9",
+    )
+    dot.node(
+        "Immunomics",
+        "Immunomics\n(scRNA-seq · Seurat\nDiff. Abundance)",
+        shape="rect",
+        style="filled",
+        fillcolor="#C8E6C9",
+    )
+
+    # Funnel node to collect single-layer results
+    dot.node(
+        "LayerResults",
+        "Per-Layer Feature Sets\n(DMPs · DEGs · Metabolites\nPRS scores · Immune signatures)",
+        shape="rect",
         style="filled",
         fillcolor="#A5D6A7",
     )
 
-    # Training Loop
+    # ------------------------------------------------------------------ #
+    # Stage 3 – Multi-Omics Integration                                   #
+    # ------------------------------------------------------------------ #
     dot.node(
-        "CheckCache",
-        """Check Training Cache
-(data/cache/training_cache.json)""",
-        shape="diamond",
-        style="filled",
-        fillcolor="#FFF9C4",
-    )
-    dot.node(
-        "TrainingLoop",
-        """Training Loop
-(Epochs, Batching, Optimization)""",
+        "MOFA",
+        "MOFA+\n(Latent Factor Analysis\nShared & Layer-Specific Variation)",
         shape="ellipse",
         style="filled",
-        fillcolor="#FFF59D",
+        fillcolor="#E1BEE7",
+    )
+    dot.node(
+        "SNF",
+        "SNF\n(Patient Similarity Networks\nSpectral Clustering → Subtypes)",
+        shape="ellipse",
+        style="filled",
+        fillcolor="#E1BEE7",
+    )
+    dot.node(
+        "IntegratedSignature",
+        "Integrated Multi-Omics Signature\n(Cross-layer factors · Subtype labels)",
+        shape="diamond",
+        style="filled",
+        fillcolor="#CE93D8",
     )
 
-    # Evaluation & Results
+    # ------------------------------------------------------------------ #
+    # Stage 4 – Downstream Analysis & Validation                          #
+    # ------------------------------------------------------------------ #
     dot.node(
-        "Evaluation",
-        """Evaluation
-(Mean Average Precision)""",
+        "Biomarker",
+        "Biomarker Model\n(LASSO Classifier\nLBD vs. AD · DLB vs. PDD · AUROC)",
         shape="doubleoctagon",
         style="filled",
-        fillcolor="#FFCCBC",
+        fillcolor="#FFE0B2",
     )
     dot.node(
-        "SaveResults",
-        """Save Results/Cache Update
-(logs/, training_cache.json)""",
+        "Pathway",
+        "Pathway Convergence\n(Cross-layer enrichment scoring\nReactome · KEGG)",
+        shape="rect",
+        style="filled",
+        fillcolor="#FFE0B2",
+    )
+    dot.node(
+        "MR",
+        "Mendelian Randomisation\n(Causal Inference\nGWAS instruments)",
+        shape="component",
+        style="filled",
+        fillcolor="#FFE0B2",
+    )
+    dot.node(
+        "Targets",
+        "Drug Target Priority List\n(Open Targets · ChEMBL\nTop 5–15 candidates)",
         shape="note",
         style="filled",
-        fillcolor="#FFECB3",
+        fillcolor="#FFCC80",
     )
 
-    # --- Connections ---
-    dot.edge("Config", "DownloadData", label="Reads")
-    dot.edge("DownloadData", "PreprocessData", label="Feeds")
-    dot.edge("PreprocessData", "ModelInit", label="Preprocessed Data")
-    dot.edge("ModelInit", "HeadAdapt", label="Initializes")
-    dot.edge("HeadAdapt", "CheckCache", label="Adapted Model")
+    # ------------------------------------------------------------------ #
+    # Connections                                                          #
+    # ------------------------------------------------------------------ #
 
-    dot.edge("CheckCache", "TrainingLoop", label="Cache Miss", headlabel="Start Training")
-    dot.edge("CheckCache", "Evaluation", label="Cache Hit", style="dotted")
+    # Stage 1
+    dot.edge("DataSources", "Harmonise", label="Raw multi-omics data")
 
-    dot.edge("TrainingLoop", "Evaluation", label="Trained Model")
-    dot.edge("Evaluation", "SaveResults", label="Evaluation Metrics")
-    dot.edge("SaveResults", "CheckCache", label="Loop/Update Cache", style="dotted")
+    # Stage 1 → Stage 2 (fan-out)
+    for layer in ["Genomics", "Epigenomics", "Transcriptomics", "Metabolomics", "Immunomics"]:
+        dot.edge("Harmonise", layer, label="")
+
+    # Stage 2 → funnel
+    for layer in ["Genomics", "Epigenomics", "Transcriptomics", "Metabolomics", "Immunomics"]:
+        dot.edge(layer, "LayerResults", label="")
+
+    # Stage 2 → Stage 3
+    dot.edge("LayerResults", "MOFA", label="Feature matrices")
+    dot.edge("LayerResults", "SNF",  label="Feature matrices")
+
+    # Stage 3 convergence
+    dot.edge("MOFA", "IntegratedSignature", label="Latent factors")
+    dot.edge("SNF",  "IntegratedSignature", label="Subtype labels")
+
+    # Stage 3 → Stage 4
+    dot.edge("IntegratedSignature", "Biomarker", label="Integrated features")
+    dot.edge("IntegratedSignature", "Pathway",   label="Convergent features")
+
+    # Stage 4 internal
+    dot.edge("Pathway", "MR",      label="Candidate pathways")
+    dot.edge("MR",      "Targets", label="Causal evidence")
+    dot.edge("Biomarker", "Targets", label="Discriminant features", style="dashed")
 
     output_path = os.path.join(OUTPUT_DIR, "training_workflow")
     dot.render(output_path, cleanup=True)

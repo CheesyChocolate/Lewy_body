@@ -6,81 +6,106 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
 def draw_architecture():
-    """Shows a simplified package structure with high-level module interactions."""
-    dot = graphviz.Digraph(comment="Project Architecture", format="png")
-    dot.attr(rankdir="LR", dpi="300", nodesep="0.2", ranksep="0.5")
-    dot.attr('graph', compound='true') # Enable cluster-to-cluster edges
-
-    # Global Node Style
+    """
+    Shows the high-level computational module architecture for the LBD
+    multi-omics research project, structured as four functional columns:
+      1. Data Sources
+      2. Harmonisation & Single-Layer Analysis
+      3. Multi-Omics Integration
+      4. Downstream Analysis & Outputs
+    """
+    dot = graphviz.Digraph(comment="LBD Multi-Omics Project Architecture", format="png")
+    dot.attr(rankdir="LR", dpi="300", nodesep="0.25", ranksep="0.6")
+    dot.attr("graph", compound="true", fontname="Helvetica", fontsize="11")
     dot.attr(
         "node",
         shape="box",
         style="filled",
         fontname="Helvetica",
         fontsize="10",
-        height="0.3",
+        height="0.35",
     )
-    dot.attr("graph", fontname="Helvetica", fontsize="11")
     dot.attr("edge", fontname="Helvetica", fontsize="9", color="#444444")
 
-    # --- Column 1: Entry Points ---
-    with dot.subgraph(name="cluster_entrypoints") as c:
-        c.attr(label="Entry Points", style="dashed", color="red")
-        c.node("Benchmark", "src/benchmark.py", fillcolor="#EF9A9A", penwidth="2")
-        c.node("RunTrain", "src/run_training.py", fillcolor="#FFCDD2")
-        c.node("RunYOLO", "src/run_yolo_training.py", fillcolor="#FFCDD2")
-        c.edge("Benchmark", "RunTrain", style="dashed")
-        c.edge("Benchmark", "RunYOLO", style="dashed")
+    # ------------------------------------------------------------------ #
+    # Column 1 – Data Sources                                             #
+    # ------------------------------------------------------------------ #
+    with dot.subgraph(name="cluster_sources") as c:
+        c.attr(label="Data Sources", style="dashed", color="#B71C1C")
+        c.node("AMPPD",       "AMP-PD\n(WGS, RNA-seq, Clinical)",        fillcolor="#FFCDD2")
+        c.node("UKB",         "UK Biobank\n(Genotyping, Proteomics)",      fillcolor="#FFCDD2")
+        c.node("GEO",         "GEO\n(Brain Transcriptomics,\nMethylation)", fillcolor="#FFCDD2")
+        c.node("NIAGADS",     "NIAGADS\n(GWAS Summary Stats)",             fillcolor="#EF9A9A", penwidth="2")
+        c.node("MetaboLights","MetaboLights / GNPS\n(Plasma Metabolomics)", fillcolor="#FFCDD2")
 
-    # --- Column 2: Data Handling ---
-    with dot.subgraph(name="cluster_data_loader") as dl:
-        dl.attr(label="Data Loader Modules", color="blue")
-        dl.node("DatasetDownloader", "dataset_downloader.py", fillcolor="#E3F2FD")
-        dl.node("Dataset", "dataset.py", fillcolor="#E3F2FD")
-        dl.node("YOLOConverter", "yolo_converter.py", fillcolor="#E3F2FD")
-        dl.edge("DatasetDownloader", "Dataset")
-        dl.edge("Dataset", "YOLOConverter", style="dashed")
+    # ------------------------------------------------------------------ #
+    # Column 2a – Harmonisation                                           #
+    # ------------------------------------------------------------------ #
+    with dot.subgraph(name="cluster_harmonisation") as c:
+        c.attr(label="Harmonisation", style="dashed", color="#1565C0")
+        c.node("QC",      "Quality Control\n(missing rate, call rate)",      fillcolor="#E3F2FD")
+        c.node("Ancestry","Ancestry Correction\n(10 genomic PCs)",           fillcolor="#E3F2FD")
+        c.node("Batch",   "Batch Correction\n(ComBat / ComBat-seq)",         fillcolor="#E3F2FD")
+        c.node("Norm",    "Normalisation\n(TMM / M-values / log-scale)",     fillcolor="#BBDEFB")
+        c.edge("QC", "Ancestry")
+        c.edge("Ancestry", "Batch")
+        c.edge("Batch", "Norm")
 
-    # --- Column 3: Modeling ---
-    with dot.subgraph(name="cluster_modeling") as m:
-        m.attr(label="Modeling Modules", color="green")
-        m.node("FasterRCNN", "faster_rcnn.py", fillcolor="#C8E6C9")
-        m.node("MaskRCNN", "mask_rcnn.py", fillcolor="#C8E6C9")
-        m.node("RetinaNet", "retinanet.py", fillcolor="#C8E6C9")
-        m.node("SSD", "ssd.py", fillcolor="#C8E6C9")
-        m.node("YOLO", "yolo.py", fillcolor="#C8E6C9")
-        m.node("EfficientNet", "faster_rcnn_efficientnet.py", fillcolor="#C8E6C9")
+    # ------------------------------------------------------------------ #
+    # Column 2b – Single-Layer Analysis                                   #
+    # ------------------------------------------------------------------ #
+    with dot.subgraph(name="cluster_singlelayer") as c:
+        c.attr(label="Single-Layer Analysis", color="#1B5E20")
+        c.node("PRS",    "Genomics\n(PRS, Rare-Variant Burden)",         fillcolor="#C8E6C9")
+        c.node("EWAS",   "Epigenomics\n(EWAS: limma + DMRcate)",         fillcolor="#C8E6C9")
+        c.node("DGE",    "Transcriptomics\n(DESeq2 + GSEA)",             fillcolor="#C8E6C9")
+        c.node("PLSDA",  "Metabolomics\n(PLS-DA / MetaboAnalyst)",       fillcolor="#C8E6C9")
+        c.node("Seurat", "Immunomics\n(Seurat: scRNA-seq clustering)",   fillcolor="#A5D6A7")
 
-    # --- Column 4: Utilities ---
-    with dot.subgraph(name="cluster_utils") as u:
-        u.attr(label="Utility Modules", color="purple")
-        u.node("Cache", "cache.py\n(Training Cache)", fillcolor="#F3E5F5")
-        u.node("Logger", "logger.py", fillcolor="#F3E5F5")
+    # ------------------------------------------------------------------ #
+    # Column 3 – Multi-Omics Integration                                  #
+    # ------------------------------------------------------------------ #
+    with dot.subgraph(name="cluster_integration") as c:
+        c.attr(label="Multi-Omics Integration", color="#4A148C")
+        c.node("MOFA",   "MOFA+\n(Latent Factor Analysis)",              fillcolor="#E1BEE7")
+        c.node("SNF",    "SNF\n(Patient Similarity Networks)",            fillcolor="#E1BEE7")
+        c.node("Subtypes","Molecular Subtypes\n(Spectral Clustering)",    fillcolor="#CE93D8")
 
-    # --- High-level Dependencies (Between Clusters) ---
-    dot.edge(
-        "RunTrain",
-        "Dataset",
-        ltail="cluster_entrypoints",
-        lhead="cluster_data_loader",
-        label="Uses Data",
-    )
-    dot.edge(
-        "Dataset",
-        "FasterRCNN",
-        ltail="cluster_data_loader",
-        lhead="cluster_modeling",
-        label="Feeds Models",
-    )
-    dot.edge(
-        "RunTrain",
-        "Logger",
-        ltail="cluster_entrypoints",
-        lhead="cluster_utils",
-        label="Uses Utils",
-        constraint='false' # Allows for a more flexible edge path
-    )
+        c.edge("MOFA", "Subtypes")
+        c.edge("SNF",  "Subtypes")
 
+    # ------------------------------------------------------------------ #
+    # Column 4 – Downstream Analysis & Outputs                           #
+    # ------------------------------------------------------------------ #
+    with dot.subgraph(name="cluster_downstream") as c:
+        c.attr(label="Downstream Analysis & Outputs", color="#E65100")
+        c.node("LASSO",   "Biomarker Model\n(LASSO Classifier, AUROC)", fillcolor="#FFE0B2")
+        c.node("Pathway", "Pathway Convergence\n(Reactome / KEGG)",     fillcolor="#FFE0B2")
+        c.node("MR",      "Mendelian Randomisation\n(Causal Inference)", fillcolor="#FFE0B2")
+        c.node("Targets", "Drug Target Priority\n(Open Targets / ChEMBL)", fillcolor="#FFCC80", penwidth="2")
+
+        c.edge("LASSO",   "Targets", style="dashed")
+        c.edge("Pathway", "MR")
+        c.edge("MR",      "Targets")
+
+    # ------------------------------------------------------------------ #
+    # Inter-cluster edges                                                  #
+    # ------------------------------------------------------------------ #
+    dot.edge("AMPPD", "QC",
+             ltail="cluster_sources", lhead="cluster_harmonisation",
+             label="Raw omics data")
+
+    dot.edge("Norm", "PRS",
+             ltail="cluster_harmonisation", lhead="cluster_singlelayer",
+             label="Harmonised matrices")
+
+    dot.edge("PRS", "MOFA",
+             ltail="cluster_singlelayer", lhead="cluster_integration",
+             label="Per-layer features")
+
+    dot.edge("Subtypes", "LASSO",
+             ltail="cluster_integration", lhead="cluster_downstream",
+             label="Integrated factors /\nsubtype labels")
 
     output_path = os.path.join(OUTPUT_DIR, "project_architecture")
     dot.render(output_path, cleanup=True)

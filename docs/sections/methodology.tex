@@ -15,7 +15,7 @@ Publicly available multi-omics datasets for LBD, DLB, PDD, and closely related c
     \item \textbf{MetaboLights / GNPS:} Plasma and CSF metabolomics datasets, including the DLB metabolomics cohort described in \cite{frontiers2024metabolomics}.
 \end{itemize}
 
-Data harmonisation will address phenotype labelling inconsistencies, ancestry stratification, and cohort-specific batch effects. The harmonisation workflow is outlined in Algorithm~\ref{alg:harmonisation}.
+Data harmonisation will address phenotype labelling inconsistencies, ancestry stratification, and cohort-specific batch effects. The overall module architecture of the project is depicted in Figure~\ref{fig:architecture}, and the harmonisation workflow is outlined in Algorithm~\ref{alg:harmonisation}.
 
 \begin{algorithm}
 \caption{Multi-Omics Data Harmonisation Workflow}
@@ -34,9 +34,16 @@ Data harmonisation will address phenotype labelling inconsistencies, ancestry st
 \end{algorithmic}
 \end{algorithm}
 
+\begin{figure}[h!]
+\centering
+\includegraphics[width=\columnwidth]{figs/project_architecture.png}
+\caption{High-level computational module architecture of the LBD multi-omics project. Data flow proceeds left to right: raw data from five public repositories pass through the harmonisation module, feed into five single-layer analysis modules, are integrated by MOFA+ and SNF, and finally enter the downstream analysis and output stage.}
+\label{fig:architecture}
+\end{figure}
+
 \subsection{Stage 2: Single-Layer Analysis (Prior to Integration)}
 
-Before integration, each omics layer will be independently analysed to characterise LBD-associated signals and estimate effect sizes:
+Before integration, each omics layer will be independently analysed to characterise LBD-associated signals and estimate effect sizes (see Figure~\ref{fig:workflow}):
 
 \begin{itemize}
     \item \textbf{Genomics:} Polygenic risk score (PRS) computation using GWAS summary statistics \cite{chia2025gwas}. Rare variant burden tests for \textit{GBA1} variants using whole-genome sequencing data.
@@ -63,3 +70,10 @@ A supervised machine learning classifier (L1-penalised logistic regression / LAS
 
 \subsubsection{Pathway Convergence and Drug Target Analysis}
 Convergent pathway scoring will quantify how many independently significant features from each omics layer map onto a given biological pathway (Reactome, KEGG). Mendelian randomisation using GWAS instruments \cite{chia2025gwas, nalls2019pd} will test putative causal relationships between multi-omics features and LBD risk. Top-ranked targets will be queried against the Open Targets Platform and ChEMBL for existing druggability evidence.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=\columnwidth]{figs/training_workflow.png}
+\caption{End-to-end analysis workflow for the LBD multi-omics project. The pipeline proceeds top-to-bottom through four stages: (1) data acquisition and harmonisation, (2) parallel single-layer analysis of five omics modalities, (3) multi-omics integration via MOFA+ and SNF converging to an integrated molecular signature, and (4) downstream analysis producing a biomarker model, convergent pathway map, and a prioritised drug target list.}
+\label{fig:workflow}
+\end{figure}
