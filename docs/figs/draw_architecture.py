@@ -8,104 +8,132 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 def draw_architecture():
     """
     Shows the high-level computational module architecture for the LBD
-    multi-omics research project, structured as four functional columns:
+    multi-omics research project as stacked horizontal bands (TB layout)
+    suitable for a two-column LaTeX figure at \\columnwidth.
+
+    Bands (top → bottom):
       1. Data Sources
-      2. Harmonisation & Single-Layer Analysis
-      3. Multi-Omics Integration
-      4. Downstream Analysis & Outputs
+      2. Harmonisation
+      3. Single-Layer Analysis
+      4. Multi-Omics Integration
+      5. Downstream Analysis & Outputs
     """
     dot = graphviz.Digraph(comment="LBD Multi-Omics Project Architecture", format="png")
-    dot.attr(rankdir="LR", dpi="300", nodesep="0.25", ranksep="0.6")
-    dot.attr("graph", compound="true", fontname="Helvetica", fontsize="11")
+    # TB layout; size constrains the canvas to ~3.5 × 7 inches (fits one column at 300 dpi)
+    dot.attr(
+        rankdir="TB",
+        dpi="300",
+        size="3.5,7!",
+        nodesep="0.18",
+        ranksep="0.45",
+        pad="0.1",
+    )
+    dot.attr("graph", compound="true", fontname="Helvetica", fontsize="9")
     dot.attr(
         "node",
         shape="box",
-        style="filled",
+        style="filled,rounded",
         fontname="Helvetica",
-        fontsize="10",
-        height="0.35",
+        fontsize="8",
+        margin="0.07,0.04",
+        height="0.28",
+        width="1.05",
+        fixedsize="false",
     )
-    dot.attr("edge", fontname="Helvetica", fontsize="9", color="#444444")
+    dot.attr("edge", fontname="Helvetica", fontsize="7", color="#555555")
 
     # ------------------------------------------------------------------ #
-    # Column 1 – Data Sources                                             #
+    # Band 1 – Data Sources (5 nodes, same rank)                          #
     # ------------------------------------------------------------------ #
     with dot.subgraph(name="cluster_sources") as c:
-        c.attr(label="Data Sources", style="dashed", color="#B71C1C")
-        c.node("AMPPD",       "AMP-PD\n(WGS, RNA-seq, Clinical)",        fillcolor="#FFCDD2")
-        c.node("UKB",         "UK Biobank\n(Genotyping, Proteomics)",      fillcolor="#FFCDD2")
-        c.node("GEO",         "GEO\n(Brain Transcriptomics,\nMethylation)", fillcolor="#FFCDD2")
-        c.node("NIAGADS",     "NIAGADS\n(GWAS Summary Stats)",             fillcolor="#EF9A9A", penwidth="2")
-        c.node("MetaboLights","MetaboLights / GNPS\n(Plasma Metabolomics)", fillcolor="#FFCDD2")
+        c.attr(label="Data Sources", style="dashed", color="#B71C1C",
+               fontsize="9", fontname="Helvetica")
+        with c.subgraph() as row:
+            row.attr(rank="same")
+            row.node("AMPPD",        "AMP-PD\n(WGS, RNA-seq)",        fillcolor="#FFCDD2")
+            row.node("UKB",          "UK Biobank\n(Genotyping, Prot.)", fillcolor="#FFCDD2")
+            row.node("GEO",          "GEO\n(Brain Omics)",             fillcolor="#FFCDD2")
+            row.node("NIAGADS",      "NIAGADS\n(GWAS Stats)",          fillcolor="#EF9A9A", penwidth="1.5")
+            row.node("MetaboLights", "MetaboLights\n(Metabolomics)",   fillcolor="#FFCDD2")
 
     # ------------------------------------------------------------------ #
-    # Column 2a – Harmonisation                                           #
+    # Band 2 – Harmonisation (4 nodes in a chain, same rank)              #
     # ------------------------------------------------------------------ #
     with dot.subgraph(name="cluster_harmonisation") as c:
-        c.attr(label="Harmonisation", style="dashed", color="#1565C0")
-        c.node("QC",      "Quality Control\n(missing rate, call rate)",      fillcolor="#E3F2FD")
-        c.node("Ancestry","Ancestry Correction\n(10 genomic PCs)",           fillcolor="#E3F2FD")
-        c.node("Batch",   "Batch Correction\n(ComBat / ComBat-seq)",         fillcolor="#E3F2FD")
-        c.node("Norm",    "Normalisation\n(TMM / M-values / log-scale)",     fillcolor="#BBDEFB")
-        c.edge("QC", "Ancestry")
-        c.edge("Ancestry", "Batch")
-        c.edge("Batch", "Norm")
+        c.attr(label="Harmonisation", style="dashed", color="#1565C0",
+               fontsize="9", fontname="Helvetica")
+        with c.subgraph() as row:
+            row.attr(rank="same")
+            row.node("QC",       "Quality\nControl",             fillcolor="#E3F2FD")
+            row.node("Ancestry", "Ancestry\nCorrection",         fillcolor="#E3F2FD")
+            row.node("Batch",    "Batch\nCorrection",            fillcolor="#E3F2FD")
+            row.node("Norm",     "Normalisation",                fillcolor="#BBDEFB")
+        c.edge("QC",       "Ancestry", label="")
+        c.edge("Ancestry", "Batch",    label="")
+        c.edge("Batch",    "Norm",     label="")
 
     # ------------------------------------------------------------------ #
-    # Column 2b – Single-Layer Analysis                                   #
+    # Band 3 – Single-Layer Analysis (5 nodes, same rank)                 #
     # ------------------------------------------------------------------ #
     with dot.subgraph(name="cluster_singlelayer") as c:
-        c.attr(label="Single-Layer Analysis", color="#1B5E20")
-        c.node("PRS",    "Genomics\n(PRS, Rare-Variant Burden)",         fillcolor="#C8E6C9")
-        c.node("EWAS",   "Epigenomics\n(EWAS: limma + DMRcate)",         fillcolor="#C8E6C9")
-        c.node("DGE",    "Transcriptomics\n(DESeq2 + GSEA)",             fillcolor="#C8E6C9")
-        c.node("PLSDA",  "Metabolomics\n(PLS-DA / MetaboAnalyst)",       fillcolor="#C8E6C9")
-        c.node("Seurat", "Immunomics\n(Seurat: scRNA-seq clustering)",   fillcolor="#A5D6A7")
+        c.attr(label="Single-Layer Analysis", color="#1B5E20",
+               fontsize="9", fontname="Helvetica")
+        with c.subgraph() as row:
+            row.attr(rank="same")
+            row.node("PRS",    "Genomics\n(PRS / Burden)",         fillcolor="#C8E6C9")
+            row.node("EWAS",   "Epigenomics\n(limma, DMRcate)",    fillcolor="#C8E6C9")
+            row.node("DGE",    "Transcriptomics\n(DESeq2, GSEA)",  fillcolor="#C8E6C9")
+            row.node("PLSDA",  "Metabolomics\n(PLS-DA)",           fillcolor="#C8E6C9")
+            row.node("Seurat", "Immunomics\n(Seurat scRNA)",       fillcolor="#A5D6A7")
 
     # ------------------------------------------------------------------ #
-    # Column 3 – Multi-Omics Integration                                  #
+    # Band 4 – Multi-Omics Integration                                    #
     # ------------------------------------------------------------------ #
     with dot.subgraph(name="cluster_integration") as c:
-        c.attr(label="Multi-Omics Integration", color="#4A148C")
-        c.node("MOFA",   "MOFA+\n(Latent Factor Analysis)",              fillcolor="#E1BEE7")
-        c.node("SNF",    "SNF\n(Patient Similarity Networks)",            fillcolor="#E1BEE7")
-        c.node("Subtypes","Molecular Subtypes\n(Spectral Clustering)",    fillcolor="#CE93D8")
-
+        c.attr(label="Multi-Omics Integration", color="#4A148C",
+               fontsize="9", fontname="Helvetica")
+        with c.subgraph() as row:
+            row.attr(rank="same")
+            row.node("MOFA",     "MOFA+\n(Factor Analysis)",       fillcolor="#E1BEE7")
+            row.node("SNF",      "SNF\n(Similarity Networks)",      fillcolor="#E1BEE7")
+            row.node("Subtypes", "Molecular Subtypes\n(Spectral Clustering)", fillcolor="#CE93D8")
         c.edge("MOFA", "Subtypes")
         c.edge("SNF",  "Subtypes")
 
     # ------------------------------------------------------------------ #
-    # Column 4 – Downstream Analysis & Outputs                           #
+    # Band 5 – Downstream Analysis & Outputs                              #
     # ------------------------------------------------------------------ #
     with dot.subgraph(name="cluster_downstream") as c:
-        c.attr(label="Downstream Analysis & Outputs", color="#E65100")
-        c.node("LASSO",   "Biomarker Model\n(LASSO Classifier, AUROC)", fillcolor="#FFE0B2")
-        c.node("Pathway", "Pathway Convergence\n(Reactome / KEGG)",     fillcolor="#FFE0B2")
-        c.node("MR",      "Mendelian Randomisation\n(Causal Inference)", fillcolor="#FFE0B2")
-        c.node("Targets", "Drug Target Priority\n(Open Targets / ChEMBL)", fillcolor="#FFCC80", penwidth="2")
-
+        c.attr(label="Downstream Analysis & Outputs", color="#E65100",
+               fontsize="9", fontname="Helvetica")
+        with c.subgraph() as row:
+            row.attr(rank="same")
+            row.node("LASSO",   "Biomarker Model\n(LASSO, AUROC)",  fillcolor="#FFE0B2")
+            row.node("Pathway", "Pathway\nConvergence",             fillcolor="#FFE0B2")
+            row.node("MR",      "Mendelian\nRandomisation",         fillcolor="#FFE0B2")
+            row.node("Targets", "Drug Targets\n(OT / ChEMBL)",      fillcolor="#FFCC80", penwidth="1.5")
         c.edge("LASSO",   "Targets", style="dashed")
         c.edge("Pathway", "MR")
         c.edge("MR",      "Targets")
 
     # ------------------------------------------------------------------ #
-    # Inter-cluster edges                                                  #
+    # Inter-band edges (one representative edge per transition)           #
     # ------------------------------------------------------------------ #
     dot.edge("AMPPD", "QC",
              ltail="cluster_sources", lhead="cluster_harmonisation",
-             label="Raw omics data")
+             label="raw omics data")
 
     dot.edge("Norm", "PRS",
              ltail="cluster_harmonisation", lhead="cluster_singlelayer",
-             label="Harmonised matrices")
+             label="harmonised matrices")
 
     dot.edge("PRS", "MOFA",
              ltail="cluster_singlelayer", lhead="cluster_integration",
-             label="Per-layer features")
+             label="per-layer features")
 
     dot.edge("Subtypes", "LASSO",
              ltail="cluster_integration", lhead="cluster_downstream",
-             label="Integrated factors /\nsubtype labels")
+             label="integrated factors / subtype labels")
 
     output_path = os.path.join(OUTPUT_DIR, "project_architecture")
     dot.render(output_path, cleanup=True)
