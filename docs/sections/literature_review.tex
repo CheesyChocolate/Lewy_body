@@ -1,0 +1,72 @@
+\section{Literature Review and Academic Summaries}
+\label{sec:literature_review}
+
+The following section provides academic summaries of five significant publications relevant to the detection of parasite eggs in microscopy.
+
+\subsection{Publication 1: Faster R-CNN for Stool Images}
+\textbf{Citation:} B. H. Viet et al., ``Parasite worm egg automatic detection in microscopy stool image based on Faster R-CNN'' \cite{viet2019parasite}.
+
+\begin{itemize}
+    \item \textbf{Research Problem:} The authors addressed the inefficiency and high error rate of manual parasite counting by proposing an automated detection system for helminth eggs in stool.
+    \item \textbf{Methodology:} They utilized \textbf{Faster R-CNN} with a VGG-16 backbone. The dataset consisted of 6,000 images of three common worm eggs (\textit{Ascaris}, \textit{Trichuris}, \textit{Hookworm}) augmented with rotation and flipping \cite{viet2019parasite}.
+    \item \textbf{Findings:} The model achieved a high classification accuracy (approx. 95\% - 98\% for different classes) and demonstrated that deep learning could effectively distinguish parasite eggs from fecal impurities.
+    \item \textbf{Strengths:} The study was one of the first to successfully apply region-based CNNs (R-CNN family) to this specific domain, establishing a strong baseline.
+    \item \textbf{Limitations:} The model outputs only bounding boxes, not segmentation masks. It struggles when eggs are heavily overlapped or occluded by debris.
+    \item \textbf{Contribution to Planned Work:} Establishes Faster R-CNN as a valid precursor; our Mask R-CNN approach is the logical next step to improve upon their bounding-box results.
+\end{itemize}
+
+\subsection{Publication 2: The Benchmark Dataset (Chula-Parasite-Egg-11)}
+\textbf{Citation:} N. Anantrasirichai et al., ``ICIP 2022 Challenge – Parasitic Egg Detection and Classification in Microscopic Images'' \cite{anantrasirichai2022icip}.
+
+\begin{itemize}
+    \item \textbf{Research Problem:} A major barrier in this field was the lack of a standardized, public dataset. This paper introduces the "Chula-Parasite-Egg-11" dataset to benchmark detection models.
+    \item \textbf{Methodology:} They curated a dataset of 11,000 microscopic images covering 11 types of parasitic eggs (including \textit{Opisthorchis viverrini}, \textit{Taenia spp.}, etc.) \cite{anantrasirichai2022icip}.
+    \item \textbf{Findings:} The challenge showed that while detection models (like YOLOv5) perform well, they struggle with "rare" classes and small eggs.
+    \item \textbf{Strengths:} It provides the largest, most diverse public dataset available for this specific task, solving the data scarcity issue.
+    \item \textbf{Limitations:} The ground truth labels are primarily bounding boxes, meaning we may need to generate pseudo-masks or manually segment a subset for Mask R-CNN training.
+    \item \textbf{Contribution to Planned Work:} We will utilize a subset of this dataset \cite{anantrasirichai2022icip} for training our model.
+\end{itemize}
+
+\subsection{Publication 3: YOLO with Attention Modules}
+\textbf{Citation:} E. Hassan et al., ``Automated detection of pinworm parasite eggs using YOLO convolutional block attention module'' \cite{wang2024automated}.
+
+\begin{itemize}
+    \item \textbf{Research Problem:} Detecting small, transparent \textit{Enterobius} (pinworm) eggs is difficult due to low contrast against the background.
+    \item \textbf{Methodology:} The authors improved the YOLOv5 architecture by adding a \textbf{Convolutional Block Attention Module (CBAM)} \cite{wang2024automated}.
+    \item \textbf{Findings:} The attention mechanism significantly improved detection recall compared to standard YOLO, achieving an mAP of 99.5\% on their specific test set.
+    \item \textbf{Strengths:} Demonstrates the importance of "Attention" mechanisms in microscopy where debris is common.
+    \item \textbf{Limitations:} The method is highly specialized for pinworms and does not address multi-class segmentation of overlapping objects.
+    \item \textbf{Contribution to Planned Work:} Suggests that adding an attention block to the Mask R-CNN backbone could improve feature extraction in noisy stool images.
+\end{itemize}
+
+\subsection{Publication 4: AI-KFM Challenge (Segmentation vs Detection)}
+\textbf{Citation:} S. Capuozzo et al., ``Automating parasite egg detection: insights from the first AI-KFM challenge'' \cite{cringoli2024automating}.
+
+\begin{itemize}
+    \item \textbf{Research Problem:} The study compares different approaches (Detection vs. Segmentation) for analyzing images from the Kubic FLOTAC Microscope.
+    \item \textbf{Methodology:} Participants used various architectures (U-Net for segmentation, YOLO for detection) to identify gastrointestinal nematodes \cite{cringoli2024automating}.
+    \item \textbf{Findings:} Instance segmentation approaches generally yielded better results for counting accuracy because they could separate touching eggs, whereas detection boxes often merged them.
+    \item \textbf{Strengths:} Directly validates the hypothesis that segmentation is superior to simple detection for clinical counting tasks.
+    \item \textbf{Limitations:} Focused on veterinary parasites (cattle), though the morphology is very similar to human parasites.
+    \item \textbf{Contribution to Planned Work:} Provides the theoretical justification for choosing Mask R-CNN over faster detectors like YOLO.
+\end{itemize}
+
+\subsection{Publication 5: Deep Learning Survey in Parasitology}
+\textbf{Citation:} C. Kavitha et al., ``Detection of Parasitic Eggs Using Deep Learning: A Survey'' \cite{kalra2024survey}.
+
+\begin{itemize}
+    \item \textbf{Research Problem:} A comprehensive review of the state-of-the-art methods, datasets, and challenges in AI-based parasitology.
+    \item \textbf{Methodology:} Systematic review of papers published between 2018 and 2024 utilizing CNNs for parasite detection \cite{kalra2024survey}.
+    \item \textbf{Findings:} The survey concludes that while classification accuracy is high, \textbf{robustness to domain shift} (different microscopes/lighting) remains a major challenge.
+    \item \textbf{Strengths:} Concise summary of all major architectures used in the field.
+    \item \textbf{Contribution to Planned Work:} Identifies "Domain Generalization" as a key future direction, which we will address by using heavy color augmentation during training.
+\end{itemize}
+
+\subsection{Recent Advancements (2024-2025): Transformers and Lightweight Models}
+The state-of-the-art continues to evolve rapidly beyond traditional CNN-based detection. Recent works have focused on two primary directions: computational efficiency for edge deployment and the adoption of transformer-based architectures for superior feature global modeling.
+
+\begin{itemize}
+    \item \textbf{Lightweight Detectors:} Li et al. \cite{li2024lightweight} introduced YAC-Net, a modified YOLOv5n architecture optimized for resource-constrained environments. By refining the neck and backbone structures, they achieved a balance between detection speed and accuracy that is critical for real-time diagnostic tools in rural clinics.
+    \item \textbf{Instance Segmentation Transformers:} The DT4PEIS framework \cite{dt4peis2024} represents a paradigm shift from traditional Mask R-CNN. By utilizing a Detection Transformer (DETR) combined with the Segment Anything Model (SAM), the authors achieved state-of-the-art performance in segmenting parasitic eggs, even in highly occluded environments. This validates our choice of segmentation but highlights the potential for future improvements using transformer-based masks.
+    \item \textbf{Multitask Vision Transformers:} ParaVisionNet \cite{paravisionnet2024} explores the application of Vision Transformers (ViT) for the simultaneous detection and classification of parasitic eggs. This research demonstrates that Transformers can capture longer-range dependencies in microscopic images than standard CNNs, leading to improved recognition of subtle morphological features.
+\end{itemize}

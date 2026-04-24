@@ -1,0 +1,72 @@
+\section{Methodology}
+\label{sec:methodology}
+
+Our study was designed to create a reproducible benchmark of modern object detection architectures for the specific task of identifying parasite eggs in microscopic images. The methodology is structured into three main parts: preparation of the dataset, adaptation of the models for the specific task, and the protocol for training and evaluation.
+
+\subsection{Dataset and Preprocessing}
+The primary dataset utilized in this research is the ``Parasitic Egg Detection and Classification in Microscopic Images'' dataset, publicly available on the Hugging Face Hub under the identifier \texttt{pui-nantheera/Parasitic\_Egg\_Detection\_and\_Classification\_in\_Microscopic\_Images}. This dataset contains images of parasite eggs annotated with bounding boxes in the COCO format, categorizing them into 12 distinct classes.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.8\columnwidth]{figs/parasite_egg_11_with_size.png}
+\caption{Sample image from the Chula-Parasite-Egg-11 dataset, showing the diverse morphology and scale of the parasite eggs.}
+\label{fig:egg_samples}
+\end{figure}
+
+A key preprocessing step was required to accommodate the Mask R-CNN model, which is architecturally designed to predict both a bounding box and an instance segmentation mask for each object. As the dataset only provides bounding boxes, we augmented the data loading process to dynamically create placeholder masks. For each object annotation, a binary mask of the same dimensions as the image was created and associated with the object. This adaptation, detailed in Algorithm \ref{alg:masks}, satisfies the model's input tensor requirements, allowing it to be trained and evaluated on its primary object detection capabilities.
+
+\begin{algorithm}
+\caption{Data Loader Mask Injection Logic}
+\label{alg:masks}
+\begin{algorithmic}[1]
+\State \textbf{Input:} A data sample $S$ containing an image and its annotations.
+\If{masks $\notin$ annotations}
+    \State Let $N$ be the number of objects in annotations.
+    \State Let $H, W$ be the height and width of the image.
+    \State Create $N$ placeholder masks of size $H \times W$, initialized to zeros.
+    \State Add the placeholder masks to the annotations.
+\EndIf
+\State \textbf{Output:} The data sample $S$, now guaranteed to contain masks.
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Model Architectures and Adaptation}
+The modular architecture of our project, depicted in Figure \ref{fig:architecture}, separates concerns into distinct components for data handling, modeling, and execution. We selected five models, implemented using PyTorch, Torchvision, and Ultralytics, chosen to represent a diversity of approaches:
+\begin{itemize}
+    \item \textbf{Two-Stage Detectors}: Faster R-CNN and Mask R-CNN, which first propose regions and then classify them.
+    \item \textbf{One-Stage Detectors}: RetinaNet, SSD, and YOLO, which predict boxes and classes in a single pass.
+\end{itemize}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=\columnwidth]{figs/project_architecture.png}
+\caption{The high-level modular architecture of the project, showing the separation between entry points, data loaders, model implementations, and utilities.}
+\label{fig:architecture}
+\end{figure}
+
+All models from the Torchvision library were loaded with weights pre-trained on the COCO dataset to leverage transfer learning. A critical adaptation was performed on these models: the final classification layer (or "head"), originally designed for COCO's 91 classes, was replaced with a new, randomly initialized head suitable for the 12 classes of our parasite dataset. This process, outlined in Algorithm \ref{alg:head}, is essential for fine-tuning the model on a new domain. For the YOLO model, this adaptation is handled internally by the Ultralytics training engine.
+
+\begin{algorithm}
+\caption{Model Head Replacement for Transfer Learning}
+\label{alg:head}
+\begin{algorithmic}[1]
+\State \textbf{Input:} A pre-trained model, number\_of\_classes.
+\State Identify the classification layer within the model’s prediction head.
+\State Determine the number of input features, $in\_features$, to this layer.
+\State Create a new classification layer with $in\_features$ as its input size and number\_of\_classes as its output size.
+\State Replace the original classification layer in the model with the new classification layer.
+\State \textbf{Output:} The adapted model, ready for fine-tuning.
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Training and Evaluation Protocol}
+The entire benchmark was orchestrated by a single script (`benchmark.py`) that follows the workflow illustrated in Figure \ref{fig:workflow}. Key hyperparameters were managed in an external configuration file for consistency. All models were trained for 10 epochs using a batch size of 4, with the Adam optimizer and an initial learning rate of 0.005. To avoid re-running completed experiments, a JSON-based cache recorded the results of each model-configuration pair.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=\columnwidth]{figs/training_workflow.png}
+\caption{The end-to-end workflow for training and evaluating a model, from configuration and data loading to evaluation and caching.}
+\label{fig:workflow}
+\end{figure}
+
+Model performance was evaluated using the Mean Average Precision (mAP) metric, as implemented in the `torchmetrics` library. The mAP score was calculated on the held-out test set, following the standard COCO evaluation protocol. This protocol averages precision across ten different Intersection over Union (IoU) thresholds, from 0.50 to 0.95, providing a comprehensive and standardized measure of each model's detection accuracy.
