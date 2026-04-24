@@ -1,17 +1,22 @@
-\section{Proposed Work and Conclusion}
+\section{Research Objectives and Proposed Work}
 \label{sec:proposed_work}
 
-Based on the analysis of these publications, we propose implementing a \textbf{Mask R-CNN with a ResNet-101-FPN backbone}. We will utilize the \textbf{Chula-Parasite-Egg-11} dataset \cite{anantrasirichai2022icip} for training.
+\subsection{Central Hypothesis}
+The central hypothesis of this project is that integrating genomic, epigenomic, metabolomic, and peripheral immunomic data across publicly available LBD cohorts will reveal convergent multi-layer molecular signatures that: (a) discriminate LBD from AD and healthy aging with higher accuracy than any single omics layer alone; and (b) identify biologically coherent, druggable pathway perturbations that underlie LBD pathogenesis.
 
-The analysis confirms that while detection (bounding boxes) is well-studied \cite{viet2019parasite}, instance segmentation (masks) is the necessary next step for clinical precision \cite{cringoli2024automating}. By incorporating attention mechanisms \cite{wang2024automated} and robust augmentation strategies identified in the literature, our project aims to build a tool capable of reliable automated diagnosis in resource-constrained settings.
+\subsection{Specific Aims}
 
-\subsection{Addressing the Segmentation Gap: From Boxes to Masks}
-A critical challenge in this study is the discrepancy between the model's requirements and the available data. Mask R-CNN is fully supervised and requires pixel-level instance masks for training, yet the Chula-Parasite-Egg-11 dataset provides only bounding box annotations. While our current implementation utilizes placeholder masks (filling the bounding box) to enable training, this approach prevents the model from learning the true morphological features of the parasites.
+\subsubsection*{Aim 1 -- Multi-Omics Biomarker Discovery}
+Identify a minimal multi-omics biomarker signature in blood-accessible samples (plasma metabolomics, peripheral immune cell transcriptomics, and blood-derived methylation data) that can discriminate (i) DLB from AD, (ii) LBD subtypes (DLB vs. PDD) from each other, and (iii) early from late disease stages. This aim directly addresses the diagnostic gap identified in the literature review and builds on the metabolomics \cite{frontiers2024metabolomics}, single-cell immune \cite{singlecell2024immune}, and biomarker review \cite{boiten2025biomarkers} findings.
 
-To overcome this limitation in future iterations, we propose a two-stage \textbf{Pseudo-Mask Generation Pipeline}:
+\subsubsection*{Aim 2 -- Cross-Layer Pathway Convergence Analysis}
+Identify biological pathways that show coordinated dysregulation across two or more omics layers. Priority pathways---lysosomal biology, synaptic vesicle trafficking, sphingolipid metabolism, and neuroinflammation---are nominated by prior single-layer studies \cite{chia2025gwas, nabais2024methylation, frontiers2024metabolomics}. The aim is to formally test pathway convergence using network-based multi-omics integration and to rank pathways by the number of independently dysregulated omics features they contain.
 
-\subsubsection{Stage 1: Classical Segmentation Initialization}
-We will generate initial "weak" masks using classical computer vision techniques within the provided bounding boxes. Methods such as \textbf{Otsu's Thresholding} or \textbf{GrabCut} algorithm can effectively separate the parasite egg from the immediate background based on intensity and texture gradients. This provides a significantly better training signal than a rectangular box.
+\subsubsection*{Aim 3 -- Drug Target Prioritisation}
+Apply Mendelian randomisation and network centrality analysis to prioritise druggable targets within convergent pathways. Candidate targets will be cross-referenced against the Open Targets Platform to assess existing drug-target evidence, clinical trial status, and safety profiles. This aim positions the project output for direct experimental follow-up or clinical trial hypothesis generation.
 
-\subsubsection{Stage 2: GAN-Based Refinement}
-To further refine these weak masks, we propose utilizing a \textbf{Generative Adversarial Network (GAN)}. A conditional GAN (cGAN), such as Pix2Pix, can be trained to translate the rough, classical segmentation outputs into high-fidelity, realistic binary masks. The GAN would effectively "learn" the shape priors of parasite eggs (e.g., the smooth oval shape of \textit{Ascaris} vs. the barrel shape of \textit{Trichuris}), correcting the irregularities and noise produced by the classical methods. This hybrid approach leverages the robustness of classical methods with the generative power of deep learning to synthesize high-quality segmentation data from bounding box annotations.
+\subsection{Innovation}
+The proposed project is innovative in three respects. \textbf{First}, while each omics layer has been studied in LBD individually, no study to date has computationally integrated all five layers (genomics, epigenomics, transcriptomics, metabolomics, immunomics) in a single analytical framework for LBD specifically. \textbf{Second}, the emphasis on blood-accessible omics layers ensures that findings have direct translational potential as minimally invasive clinical tests. \textbf{Third}, the project is designed to be fully reproducible: all data sources are open-access, all analysis code will be version-controlled and publicly released, and the pipeline will be containerised (Docker/Singularity) to enable external replication.
+
+\subsection{Scope and Scale}
+This is conceived as a \textbf{computational, data-driven project}. No new sample collection, wet-laboratory experiments, or patient recruitment are required for the primary aims. The project is therefore well-suited for a single researcher or a small team with access to standard computational infrastructure (a workstation or cloud computing account). The expected duration for a thorough completion is 12--18 months for a researcher with intermediate bioinformatics skills, or 6--9 months for an experienced computational biologist.

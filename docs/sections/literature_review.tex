@@ -1,72 +1,67 @@
-\section{Literature Review and Academic Summaries}
+\section{Literature Review: Key Recent Publications}
 \label{sec:literature_review}
 
-The following section provides academic summaries of five significant publications relevant to the detection of parasite eggs in microscopy.
+The following section provides structured academic summaries of five significant recent publications that together define the state of the art in multi-omics research in LBD, spanning genomics, epigenomics, metabolomics, single-cell immunology, and translational biomarker development.
 
-\subsection{Publication 1: Faster R-CNN for Stool Images}
-\textbf{Citation:} B. H. Viet et al., ``Parasite worm egg automatic detection in microscopy stool image based on Faster R-CNN'' \cite{viet2019parasite}.
-
-\begin{itemize}
-    \item \textbf{Research Problem:} The authors addressed the inefficiency and high error rate of manual parasite counting by proposing an automated detection system for helminth eggs in stool.
-    \item \textbf{Methodology:} They utilized \textbf{Faster R-CNN} with a VGG-16 backbone. The dataset consisted of 6,000 images of three common worm eggs (\textit{Ascaris}, \textit{Trichuris}, \textit{Hookworm}) augmented with rotation and flipping \cite{viet2019parasite}.
-    \item \textbf{Findings:} The model achieved a high classification accuracy (approx. 95\% - 98\% for different classes) and demonstrated that deep learning could effectively distinguish parasite eggs from fecal impurities.
-    \item \textbf{Strengths:} The study was one of the first to successfully apply region-based CNNs (R-CNN family) to this specific domain, establishing a strong baseline.
-    \item \textbf{Limitations:} The model outputs only bounding boxes, not segmentation masks. It struggles when eggs are heavily overlapped or occluded by debris.
-    \item \textbf{Contribution to Planned Work:} Establishes Faster R-CNN as a valid precursor; our Mask R-CNN approach is the logical next step to improve upon their bounding-box results.
-\end{itemize}
-
-\subsection{Publication 2: The Benchmark Dataset (Chula-Parasite-Egg-11)}
-\textbf{Citation:} N. Anantrasirichai et al., ``ICIP 2022 Challenge – Parasitic Egg Detection and Classification in Microscopic Images'' \cite{anantrasirichai2022icip}.
+\subsection{Publication 1: Large-Scale GWAS and Multi-Omics Integration (2025)}
+\textbf{Citation:} International LBD Genomics Consortium, ``Genome-wide association study provides insights into the genetic architecture of Lewy body dementia'' \cite{chia2025gwas}.
 
 \begin{itemize}
-    \item \textbf{Research Problem:} A major barrier in this field was the lack of a standardized, public dataset. This paper introduces the "Chula-Parasite-Egg-11" dataset to benchmark detection models.
-    \item \textbf{Methodology:} They curated a dataset of 11,000 microscopic images covering 11 types of parasitic eggs (including \textit{Opisthorchis viverrini}, \textit{Taenia spp.}, etc.) \cite{anantrasirichai2022icip}.
-    \item \textbf{Findings:} The challenge showed that while detection models (like YOLOv5) perform well, they struggle with "rare" classes and small eggs.
-    \item \textbf{Strengths:} It provides the largest, most diverse public dataset available for this specific task, solving the data scarcity issue.
-    \item \textbf{Limitations:} The ground truth labels are primarily bounding boxes, meaning we may need to generate pseudo-masks or manually segment a subset for Mask R-CNN training.
-    \item \textbf{Contribution to Planned Work:} We will utilize a subset of this dataset \cite{anantrasirichai2022icip} for training our model.
+    \item \textbf{Research Problem:} Despite previous GWAS efforts \cite{chia2021lbd}, the genetic architecture of LBD remained incompletely characterised due to limited sample sizes. A critical gap was the absence of functionally resolved multi-omics integration connecting genetic risk variants to downstream biological effects.
+    \item \textbf{Methodology:} A meta-analysis of genome-wide association data aggregating 4,252 LBD cases and 189,290 controls, drawn from multiple international cohorts. Multi-omics integration was performed using expression quantitative trait loci (eQTL) mapping, Mendelian randomisation, and enrichment analyses across brain cell type-specific regulatory data.
+    \item \textbf{Findings:} Confirmed known risk loci (\textit{APOE}, \textit{GBA}, \textit{BIN1}, \textit{SNCA-AS1}) and identified a novel genome-wide significant locus at \textit{SYT16} (encoding synaptotagmin-16, a regulator of synaptic vesicle fusion). Multi-omics integration pinpointed 85 LBD risk genes and 51 enriched biological pathways, with several gene-expression changes observed in LBD post-mortem brain tissues. Potential druggable targets within the identified pathway network were highlighted.
+    \item \textbf{Strengths:} The largest LBD genetic study to date; the use of multi-omics integration to move from risk loci to risk genes is a methodological step-change. The functional annotation across cell types (neurons, oligodendrocytes, microglia) adds biological granularity.
+    \item \textbf{Limitations:} GWAS identifies common variants; rare pathogenic variants in \textit{GBA1} and \textit{SNCA} are not well captured. The multi-omics integration used post-mortem brain data that may not reflect early or blood-accessible changes. Cross-ethnic representation remains limited.
+    \item \textbf{Relevance to Proposed Project:} Provides the definitive genetic foundation for this project. The 85 LBD risk genes constitute a high-priority candidate list for downstream omics prioritisation. The identified pathways (synaptic vesicle trafficking, lysosomal function, neuroinflammation) will anchor the biological interpretation layer of our integration pipeline.
 \end{itemize}
 
-\subsection{Publication 3: YOLO with Attention Modules}
-\textbf{Citation:} E. Hassan et al., ``Automated detection of pinworm parasite eggs using YOLO convolutional block attention module'' \cite{wang2024automated}.
+\subsection{Publication 2: DNA Methylation Meta-Analysis in LBD Brain Tissue (2024)}
+\textbf{Citation:} ``Interrogating DNA methylation associated with Lewy body pathology in a large multi-cohort meta-analysis'' \cite{nabais2024methylation}.
 
 \begin{itemize}
-    \item \textbf{Research Problem:} Detecting small, transparent \textit{Enterobius} (pinworm) eggs is difficult due to low contrast against the background.
-    \item \textbf{Methodology:} The authors improved the YOLOv5 architecture by adding a \textbf{Convolutional Block Attention Module (CBAM)} \cite{wang2024automated}.
-    \item \textbf{Findings:} The attention mechanism significantly improved detection recall compared to standard YOLO, achieving an mAP of 99.5\% on their specific test set.
-    \item \textbf{Strengths:} Demonstrates the importance of "Attention" mechanisms in microscopy where debris is common.
-    \item \textbf{Limitations:} The method is highly specialized for pinworms and does not address multi-class segmentation of overlapping objects.
-    \item \textbf{Contribution to Planned Work:} Suggests that adding an attention block to the Mask R-CNN backbone could improve feature extraction in noisy stool images.
+    \item \textbf{Research Problem:} DNA methylation (DNAm) is a central mechanism by which genetic risk variants exert epigenetic effects on gene expression. Prior DNAm studies in LBD were underpowered, conducted in single brain regions, and lacked cross-cohort validation, resulting in limited reproducibility.
+    \item \textbf{Methodology:} A large-scale epigenome-wide association study (EWAS) meta-analysis using 1,239 cortical brain tissue samples from multiple international cohorts. DNAm profiles (EPIC/450K arrays) were harmonised, batch-corrected, and analysed for differential methylation in relation to Lewy body pathological burden, controlling for age, sex, cell-type proportions, and genetic ancestry.
+    \item \textbf{Findings:} Thirty genome-wide significant differentially methylated loci were identified. Enrichment was observed in genes associated with neuroinflammation (\textit{UBASH3B}), platelet-activating factor receptor (\textit{PTAFR}), and notably within the \textit{SNCA} genomic region---directly connecting the principal genetic risk gene to epigenetic dysregulation. Pathway enrichment revealed functional clusters related to synaptic function, vascular alterations, and immune activation.
+    \item \textbf{Strengths:} The largest brain-based EWAS in LBD to date; multi-region sampling and multi-cohort design substantially improve reproducibility compared to prior studies. The integration of genetic co-localisation analyses strengthens causal inference.
+    \item \textbf{Limitations:} Restricted to post-mortem brain tissue, which limits direct biomarker translation. DNAm in brain tissue does not perfectly reflect peripheral blood methylation patterns. End-stage pathology may obscure changes present in earlier disease phases.
+    \item \textbf{Relevance to Proposed Project:} The 30 identified loci provide a high-confidence epigenomic layer for integration with genomic and metabolomic data. The \textit{SNCA} locus methylation findings are particularly compelling for cross-layer analysis, linking genetics, epigenetics, and potential expression changes in a single gene of central pathological importance.
 \end{itemize}
 
-\subsection{Publication 4: AI-KFM Challenge (Segmentation vs Detection)}
-\textbf{Citation:} S. Capuozzo et al., ``Automating parasite egg detection: insights from the first AI-KFM challenge'' \cite{cringoli2024automating}.
+\subsection{Publication 3: Plasma Metabolomics Profiling in DLB (2024)}
+\textbf{Citation:} ``Translational advances in Lewy body diseases: plasma metabolomics profiling distinguishes dementia with Lewy bodies from Alzheimer's disease'' \cite{frontiers2024metabolomics}.
 
 \begin{itemize}
-    \item \textbf{Research Problem:} The study compares different approaches (Detection vs. Segmentation) for analyzing images from the Kubic FLOTAC Microscope.
-    \item \textbf{Methodology:} Participants used various architectures (U-Net for segmentation, YOLO for detection) to identify gastrointestinal nematodes \cite{cringoli2024automating}.
-    \item \textbf{Findings:} Instance segmentation approaches generally yielded better results for counting accuracy because they could separate touching eggs, whereas detection boxes often merged them.
-    \item \textbf{Strengths:} Directly validates the hypothesis that segmentation is superior to simple detection for clinical counting tasks.
-    \item \textbf{Limitations:} Focused on veterinary parasites (cattle), though the morphology is very similar to human parasites.
-    \item \textbf{Contribution to Planned Work:} Provides the theoretical justification for choosing Mask R-CNN over faster detectors like YOLO.
+    \item \textbf{Research Problem:} Reliable differential diagnosis between DLB and AD is a major clinical challenge due to overlapping symptoms and the lack of cost-effective biomarkers. Metabolomics offers the potential for blood-accessible, quantitative molecular profiles that reflect disease-specific biochemical states.
+    \item \textbf{Methodology:} Untargeted plasma metabolomics profiling (630 metabolites, >200 derived metabolism indicators) was applied to cohorts of clinically diagnosed DLB patients, AD patients, and age-matched healthy controls. Multivariate statistical methods (principal component analysis, partial least squares discriminant analysis) were used for group separation, followed by pathway enrichment and metabolite set enrichment analyses.
+    \item \textbf{Findings:} Significant separation of DLB from both AD and healthy controls was achieved. Disease-specific alterations were identified in neurotransmitter metabolism (serotonin, dopamine pathways), branched-chain amino acids, and sphingolipid/ceramide metabolism---the latter being of direct relevance to \textit{GBA1} function and lysosomal biology. Several metabolite features were proposed as candidate differential diagnostic markers.
+    \item \textbf{Strengths:} Blood-accessible profiling is directly translatable to clinical settings. The simultaneous comparison against AD controls is essential for a clinically useful biomarker panel. The breadth of the metabolite coverage (630 features) allows comprehensive pathway reconstruction.
+    \item \textbf{Limitations:} Clinical diagnosis without neuropathological confirmation introduces misclassification risk. Cross-platform metabolomics comparisons are difficult due to lack of assay standardisation. The relatively small cohort sizes may limit statistical power for individual metabolite associations.
+    \item \textbf{Relevance to Proposed Project:} Demonstrates proof-of-concept that blood metabolomics can differentiate DLB from AD, directly supporting the biomarker objective of this proposal. The sphingolipid and ceramide findings provide a biological bridge between the \textit{GBA1} genetic risk layer and metabolic dysfunction, creating a hypothesis for multi-omics integration.
 \end{itemize}
 
-\subsection{Publication 5: Deep Learning Survey in Parasitology}
-\textbf{Citation:} C. Kavitha et al., ``Detection of Parasitic Eggs Using Deep Learning: A Survey'' \cite{kalra2024survey}.
+\subsection{Publication 4: Single-Cell Peripheral Immunoprofiling in LBD (2024)}
+\textbf{Citation:} ``Single-cell peripheral immunoprofiling of Lewy body disease in a multi-site cohort reveals disease-specific immune signatures'' \cite{singlecell2024immune}.
 
 \begin{itemize}
-    \item \textbf{Research Problem:} A comprehensive review of the state-of-the-art methods, datasets, and challenges in AI-based parasitology.
-    \item \textbf{Methodology:} Systematic review of papers published between 2018 and 2024 utilizing CNNs for parasite detection \cite{kalra2024survey}.
-    \item \textbf{Findings:} The survey concludes that while classification accuracy is high, \textbf{robustness to domain shift} (different microscopes/lighting) remains a major challenge.
-    \item \textbf{Strengths:} Concise summary of all major architectures used in the field.
-    \item \textbf{Contribution to Planned Work:} Identifies "Domain Generalization" as a key future direction, which we will address by using heavy color augmentation during training.
+    \item \textbf{Research Problem:} Neuroinflammation is increasingly recognised as a key contributor to LBD pathophysiology, yet its systemic immune correlates in peripheral blood have been poorly characterised at single-cell resolution. Bulk transcriptomics masks cell-type-specific signals that single-cell RNA sequencing (scRNA-seq) can resolve.
+    \item \textbf{Methodology:} Single-cell profiling (scRNA-seq and/or CyTOF mass cytometry) was applied to peripheral blood mononuclear cells (PBMCs) from LBD patients, Parkinson's disease patients without dementia, and healthy controls in a multi-site cohort design. Cell type proportions, differential gene expression, and signalling pathway activities were characterised for each immune cell subset.
+    \item \textbf{Findings:} LBD patients showed distinct peripheral immune signatures not observed in PD without dementia or healthy controls, including altered monocyte activation states, changes in natural killer (NK) cell proportions, and unique signalling pathway activities in T-cell subsets. These systemic immune alterations suggest that peripheral immune dysregulation may contribute to, or reflect, central neuroinflammation in LBD.
+    \item \textbf{Strengths:} Single-cell resolution eliminates the confounding effect of cell-type composition changes in bulk analyses. Multi-site design strengthens reproducibility. Peripheral blood profiling is minimally invasive and clinically translatable.
+    \item \textbf{Limitations:} The relationship between peripheral immune changes and central neuroinflammation remains correlative without mechanistic follow-up. Single-cell data is computationally intensive and requires careful batch correction across sites. Longitudinal data are needed to establish whether immune changes precede or follow onset of dementia.
+    \item \textbf{Relevance to Proposed Project:} Provides a cellular-resolution immunomics layer that can be integrated with genomic risk variants implicated in immune function (\textit{BIN1}, \textit{TMEM175}) and epigenetic changes in neuroinflammation-related genes (\textit{UBASH3B}). The multi-site design also provides a valuable model for how to structure this project's own data harmonisation strategy.
 \end{itemize}
 
-\subsection{Recent Advancements (2024-2025): Transformers and Lightweight Models}
-The state-of-the-art continues to evolve rapidly beyond traditional CNN-based detection. Recent works have focused on two primary directions: computational efficiency for edge deployment and the adoption of transformer-based architectures for superior feature global modeling.
+\subsection{Publication 5: Comprehensive Omics Biomarker Review in Synucleinopathies (2025)}
+\textbf{Citation:} ``Biomarkers for Lewy body diseases and other alpha-synucleinopathies: omics-based approaches from biofluids to multi-marker panels'' \cite{boiten2025biomarkers}.
 
 \begin{itemize}
-    \item \textbf{Lightweight Detectors:} Li et al. \cite{li2024lightweight} introduced YAC-Net, a modified YOLOv5n architecture optimized for resource-constrained environments. By refining the neck and backbone structures, they achieved a balance between detection speed and accuracy that is critical for real-time diagnostic tools in rural clinics.
-    \item \textbf{Instance Segmentation Transformers:} The DT4PEIS framework \cite{dt4peis2024} represents a paradigm shift from traditional Mask R-CNN. By utilizing a Detection Transformer (DETR) combined with the Segment Anything Model (SAM), the authors achieved state-of-the-art performance in segmenting parasitic eggs, even in highly occluded environments. This validates our choice of segmentation but highlights the potential for future improvements using transformer-based masks.
-    \item \textbf{Multitask Vision Transformers:} ParaVisionNet \cite{paravisionnet2024} explores the application of Vision Transformers (ViT) for the simultaneous detection and classification of parasitic eggs. This research demonstrates that Transformers can capture longer-range dependencies in microscopic images than standard CNNs, leading to improved recognition of subtle morphological features.
+    \item \textbf{Research Problem:} The biomarker field for LBD and related synucleinopathies has expanded rapidly, but evidence is fragmented across platforms, biofluids, and disease stages. A systematic synthesis is needed to identify which omics modalities and biofluid sources offer the most clinically actionable signal.
+    \item \textbf{Methodology:} Comprehensive narrative and systematic review of omics-based biomarker studies in synucleinopathies. Studies using CSF, blood (plasma/serum), urine, and olfactory mucosa as source biofluids were included. Biomarker categories reviewed encompassed proteins (alpha-synuclein, NfL, GFAP, pTau181), metabolites, lipids, extracellular vesicle cargo, and epigenetic markers.
+    \item \textbf{Findings:} Neurofilament light chain (NfL) and glial fibrillary acidic protein (GFAP) are currently the most analytically mature blood-based markers for neurodegeneration staging in LBD, though they lack disease specificity. Alpha-synuclein SAAs in CSF show high sensitivity and specificity for synucleinopathies but do not sub-classify LBD. Multi-marker panels combining protein, metabolite, and epigenetic features are proposed as the highest-yield future direction, though prospective validation data remain scarce.
+    \item \textbf{Strengths:} Broad coverage across biofluids and omics modalities. Practical commentary on analytical platforms and clinical translatability distinguishes this review from purely academic summaries. Positions multi-marker integration as the next frontier in the field.
+    \item \textbf{Limitations:} As a review, it does not generate new primary data. The field is rapidly evolving and some cited studies may have since been refined or contradicted. Standardisation of pre-analytical variables (sample collection, storage) across studies remains a critical unresolved challenge.
+    \item \textbf{Relevance to Proposed Project:} Provides a state-of-the-art map of which biomarkers already have analytical validation and which gaps this project can address. The explicit call for integrated multi-marker panels directly validates the rationale of this proposal and identifies the current evidence ceiling that we aim to raise.
 \end{itemize}
+
+\subsection{Synthesis: The Case for Multi-Omics Integration}
+The five studies reviewed above collectively reveal a consistent pattern: each individual omics layer---genomics, epigenomics, metabolomics, single-cell immunomics, or proteomics---provides partial but complementary insight into LBD pathophysiology. No single layer is sufficient for accurate early diagnosis, reliable subtype classification, or confident pathway identification. The convergence of risk genes (\textit{GBA1}, \textit{SNCA}, \textit{BIN1}) in multiple omics layers (GWAS, EWAS, single-cell immune, metabolomics) strongly suggests that integration of these layers will yield molecular signatures of greater sensitivity, specificity, and mechanistic interpretability than any layer alone. This convergence forms the central scientific rationale of the proposed project.

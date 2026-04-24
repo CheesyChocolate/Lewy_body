@@ -1,34 +1,62 @@
-\section{Results and Discussion}
+\section{Feasibility Assessment and Expected Outcomes}
 \label{sec:results}
 
-In this section, we present a comparative analysis of five object detection architectures adapted for the identification of parasite eggs. \textbf{Note: Due to significant local hardware constraints, the quantitative results presented in this section represent projected performance values based on architectural characteristics and established benchmarks in the literature, rather than final experimental outputs from the local environment.}
+This section evaluates the practical feasibility of the proposed project across four dimensions---data availability, computational requirements, methodological maturity, and risk factors---and projects the expected scientific outcomes if the project proceeds.
 
-\subsection{Comparative Performance Analysis}
-The primary metric for evaluation is the Mean Average Precision (mAP) at an Intersection over Union (IoU) threshold of 0.50 (mAP@50). The results, summarized in Table \ref{tab:benchmark_results}, reflect the expected trade-offs between architectural complexity and detection accuracy.
+\subsection{Feasibility Dimensions}
+
+Table~\ref{tab:feasibility} summarises the feasibility assessment for each omics layer and analytical stage.
 
 \begin{table}[h!]
 \centering
-\caption{Projected benchmark results for parasite egg detection models. These values represent anticipated performance based on existing research and architectural benchmarks, as local hardware limitations precluded full-scale training.}
-\label{tab:benchmark_results}
-\begin{tabular}{@{}lccc@{}}
+\caption{Feasibility assessment for each proposed omics layer and analysis component.}
+\label{tab:feasibility}
+\begin{tabular}{@{}p{2.5cm}p{2.2cm}p{1.4cm}p{1.8cm}@{}}
 \toprule
-\textbf{Model} & \textbf{Backbone} & \textbf{mAP@50} & \textbf{Inference Time (ms)} \\
+\textbf{Component} & \textbf{Data Availability} & \textbf{Compute Demand} & \textbf{Risk Level} \\
 \midrule
-YOLOv8         & CSPDarknet53     & 0.982          & 12.5                         \\
-RetinaNet      & ResNet-50-FPN    & 0.945          & 28.3                         \\
-SSD            & VGG-16           & 0.891          & 18.2                         \\
-Faster R-CNN   & ResNet-50-FPN    & 0.964          & 45.1                         \\
-Mask R-CNN     & ResNet-50-FPN    & 0.958          & 52.4                         \\
+GWAS / PRS & High (AMP-PD, NIAGADS) & Low & Low \\
+DNA Methylation (brain) & Moderate (GEO) & Moderate & Low \\
+DNA Methylation (blood) & Low-Moderate & Moderate & Moderate \\
+Bulk RNA-seq & High (AMP-PD, GEO) & Moderate & Low \\
+Plasma Metabolomics & Low-Moderate & Low & Moderate \\
+Single-cell Immunomics & Low (few public LBD scRNA-seq) & High & High \\
+MOFA+ Integration & n/a & Moderate & Low \\
+SNF Integration & n/a & Moderate & Low \\
+ML Classifier & n/a & Low & Low \\
+Drug Target Analysis & n/a & Low & Low \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsection{Discussion of Findings}
-As expected, the one-stage detectors demonstrated superior inference speed. **YOLOv8** achieved the highest overall mAP, consistent with recent findings by Hassan et al. \cite{wang2024automated} regarding the efficiency of YOLO architectures when augmented with attention-like mechanisms. Its ability to capture global context within a single pass makes it highly effective for the relatively consistent shapes of parasite eggs.
+\subsubsection{Data Availability}
+The richest data sources are for \textbf{genomics} and \textbf{transcriptomics}, both well-represented in AMP-PD (requires an approved data access request, typically granted within 4--8 weeks) and GEO. \textbf{Epigenomic data} for brain tissue is available from GEO for several published EWAS cohorts \cite{nabais2024methylation}, though coverage is less comprehensive than for gene expression. \textbf{Plasma metabolomics} and \textbf{peripheral single-cell data} represent the most data-limited layers; only a small number of public LBD-specific datasets currently exist. The project can proceed effectively with 3--4 of the five proposed omics layers, particularly if genomics, epigenomics, and transcriptomics are prioritised, with metabolomics and single-cell data added opportunistically.
 
-The two-stage detectors, **Faster R-CNN** and **Mask R-CNN**, provided competitive accuracy but at the cost of significantly higher computational overhead. The slightly lower mAP of Mask R-CNN compared to Faster R-CNN in our benchmark is likely attributable to the lack of true segmentation masks in the training data. As noted in the methodology, the use of placeholder bounding-box masks forces the model to treat the entire rectangular region as the object, potentially introducing noise into the feature extraction process for the segmentation head.
+\subsubsection{Computational Requirements}
+The majority of analyses can be executed on a standard research workstation (16 GB RAM, 8-core CPU) within reasonable runtimes. Single-cell RNA-seq analysis is the most computationally demanding step, requiring at least 32--64 GB RAM; this step can be performed on a cloud computing instance (e.g., AWS EC2, Google Cloud) at modest cost (\$50--200 USD per analysis run). GPU acceleration is not required for any proposed method.
 
-Finally, the **SSD** model, while fast, showed the lowest precision. This is likely due to its known limitations in detecting small, high-density objects in microscopic images, where the fixed-size grid of the SSD architecture may fail to capture the subtle boundaries of overlapping eggs as effectively as the region-proposal mechanisms of the R-CNN family or the anchor-free approach of newer YOLO versions.
+\subsubsection{Methodological Maturity}
+All proposed computational methods (MOFA+, SNF, LASSO, DESeq2, Mendelian randomisation) are well-established and actively maintained in open-source software packages with comprehensive documentation and tutorial datasets. The learning curve is moderate for researchers familiar with R or Python bioinformatics workflows; no novel algorithm development is required.
 
-\subsection{Implications for Clinical Deployment}
-These results suggest that for real-time diagnostic applications in resource-constrained settings, YOLOv8 represents the most viable balance of speed and precision. However, for clinical counting and morphological species identification—where separating touching eggs is critical—the instance segmentation capabilities of Mask R-CNN remain indispensable, provided that high-quality segmentation data is available for training.
+\subsubsection{Identified Risks and Mitigations}
+
+\begin{itemize}
+    \item \textbf{Risk: Limited sample sizes for LBD.} LBD remains a rarer condition than AD or PD, and most public datasets contain $<300$ well-characterised LBD cases. \textit{Mitigation:} Prioritise cross-cohort meta-analysis approaches and use resampling (bootstrap, permutation testing) to assess statistical robustness. Power analyses for each specific aim should be performed prior to analysis.
+    \item \textbf{Risk: AD co-pathology confounding.} Over 50\% of DLB brains harbour co-occurring AD pathology ($\beta$-amyloid plaques, tau tangles), which may obscure LBD-specific signals. \textit{Mitigation:} Stratify analyses by documented AD co-pathology status where neuropathological data are available; include pure AD controls to identify AD-attributable signal.
+    \item \textbf{Risk: Missing data across omics layers.} Few individual subjects have complete multi-omics profiling. \textit{Mitigation:} MOFA+ explicitly handles missing data; for SNF, perform sensitivity analyses on the subset with complete data.
+    \item \textbf{Risk: Clinical heterogeneity (DLB vs. PDD).} DLB and PDD may represent distinct biological entities with overlapping pathology, diluting integration signals. \textit{Mitigation:} Analyse DLB and PDD as separate strata in primary analyses; test for subtype differences as a secondary objective.
+\end{itemize}
+
+\subsection{Projected Outcomes}
+
+If the project proceeds as proposed, the following outcomes are expected:
+
+\begin{itemize}
+    \item A curated, harmonised multi-omics dataset for LBD, deposited in an open-access repository, that will serve as a community resource for future studies.
+    \item A published multi-omics integration analysis identifying 3--10 convergent molecular pathways in LBD with coordinated dysregulation across $\geq 3$ omics layers.
+    \item A validated multi-omics biomarker panel (targeting $\leq 20$ features) that achieves AUROC $\geq 0.85$ in distinguishing LBD from AD in cross-validated analysis.
+    \item A ranked list of 5--15 candidate drug targets within prioritised pathways, each annotated with genetic causal evidence and existing druggability data.
+    \item A fully documented, containerised computational pipeline made publicly available on GitHub, enabling external replication and extension by other groups.
+\end{itemize}
+
+These outcomes align directly with current funding priorities in the LBD field, including calls from the Lewy Body Dementia Association (LBDA) Research Center of Excellence program and the UK Dementia Research Institute (UK DRI), and would support follow-up grant applications for experimental validation of top candidates.

@@ -1,72 +1,65 @@
-\section{Methodology}
+\section{Proposed Methodology}
 \label{sec:methodology}
 
-Our study was designed to create a reproducible benchmark of modern object detection architectures for the specific task of identifying parasite eggs in microscopic images. The methodology is structured into three main parts: preparation of the dataset, adaptation of the models for the specific task, and the protocol for training and evaluation.
+The methodology is structured into four stages: (1) data acquisition and harmonisation, (2) single-layer preprocessing and quality control, (3) multi-omics integration, and (4) downstream analysis and validation. All analyses will be implemented in Python (v3.10+) and R (v4.3+), using established bioinformatics libraries.
 
-\subsection{Dataset and Preprocessing}
-The primary dataset utilized in this research is the ``Parasitic Egg Detection and Classification in Microscopic Images'' dataset, publicly available on the Hugging Face Hub under the identifier \texttt{pui-nantheera/Parasitic\_Egg\_Detection\_and\_Classification\_in\_Microscopic\_Images}. This dataset contains images of parasite eggs annotated with bounding boxes in the COCO format, categorizing them into 12 distinct classes.
+\subsection{Stage 1: Data Acquisition and Harmonisation}
 
-\begin{figure}[h!]
-\centering
-\includegraphics[width=0.8\columnwidth]{figs/parasite_egg_11_with_size.png}
-\caption{Sample image from the Chula-Parasite-Egg-11 dataset, showing the diverse morphology and scale of the parasite eggs.}
-\label{fig:egg_samples}
-\end{figure}
+Publicly available multi-omics datasets for LBD, DLB, PDD, and closely related conditions (AD and PD without dementia as comparators) will be obtained from the following repositories:
 
-A key preprocessing step was required to accommodate the Mask R-CNN model, which is architecturally designed to predict both a bounding box and an instance segmentation mask for each object. As the dataset only provides bounding boxes, we augmented the data loading process to dynamically create placeholder masks. For each object annotation, a binary mask of the same dimensions as the image was created and associated with the object. This adaptation, detailed in Algorithm \ref{alg:masks}, satisfies the model's input tensor requirements, allowing it to be trained and evaluated on its primary object detection capabilities.
-
-\begin{algorithm}
-\caption{Data Loader Mask Injection Logic}
-\label{alg:masks}
-\begin{algorithmic}[1]
-\State \textbf{Input:} A data sample $S$ containing an image and its annotations.
-\If{masks $\notin$ annotations}
-    \State Let $N$ be the number of objects in annotations.
-    \State Let $H, W$ be the height and width of the image.
-    \State Create $N$ placeholder masks of size $H \times W$, initialized to zeros.
-    \State Add the placeholder masks to the annotations.
-\EndIf
-\State \textbf{Output:} The data sample $S$, now guaranteed to contain masks.
-\end{algorithmic}
-\end{algorithm}
-
-\subsection{Model Architectures and Adaptation}
-The modular architecture of our project, depicted in Figure \ref{fig:architecture}, separates concerns into distinct components for data handling, modeling, and execution. We selected five models, implemented using PyTorch, Torchvision, and Ultralytics, chosen to represent a diversity of approaches:
 \begin{itemize}
-    \item \textbf{Two-Stage Detectors}: Faster R-CNN and Mask R-CNN, which first propose regions and then classify them.
-    \item \textbf{One-Stage Detectors}: RetinaNet, SSD, and YOLO, which predict boxes and classes in a single pass.
+    \item \textbf{AMP-PD (Accelerating Medicines Partnership -- Parkinson's Disease):} Whole-genome sequencing, whole-blood RNA-seq, and clinical data from PPMI, BioFIND, PDBP, and HBS cohorts. Contains subjects with PD, PDD, and healthy controls.
+    \item \textbf{UK Biobank:} Genome-wide genotyping arrays, plasma proteomics (Olink Explore), and linked clinical diagnoses for large-scale genetic and proteomic analyses.
+    \item \textbf{Gene Expression Omnibus (GEO):} Post-mortem brain transcriptomics datasets in LBD (e.g., GSE series from frontal cortex, substantia nigra, cingulate cortex). DNA methylation array data (EPIC 850K) from brain tissue EWAS cohorts.
+    \item \textbf{NIAGADS Genomics Database:} GWAS summary statistics from the LBD Genomics Consortium \cite{chia2025gwas, chia2021lbd}.
+    \item \textbf{MetaboLights / GNPS:} Plasma and CSF metabolomics datasets, including the DLB metabolomics cohort described in \cite{frontiers2024metabolomics}.
 \end{itemize}
 
-\begin{figure}[h!]
-\centering
-\includegraphics[width=\columnwidth]{figs/project_architecture.png}
-\caption{The high-level modular architecture of the project, showing the separation between entry points, data loaders, model implementations, and utilities.}
-\label{fig:architecture}
-\end{figure}
-
-All models from the Torchvision library were loaded with weights pre-trained on the COCO dataset to leverage transfer learning. A critical adaptation was performed on these models: the final classification layer (or "head"), originally designed for COCO's 91 classes, was replaced with a new, randomly initialized head suitable for the 12 classes of our parasite dataset. This process, outlined in Algorithm \ref{alg:head}, is essential for fine-tuning the model on a new domain. For the YOLO model, this adaptation is handled internally by the Ultralytics training engine.
+Data harmonisation will address phenotype labelling inconsistencies, ancestry stratification, and cohort-specific batch effects. The harmonisation workflow is outlined in Algorithm~\ref{alg:harmonisation}.
 
 \begin{algorithm}
-\caption{Model Head Replacement for Transfer Learning}
-\label{alg:head}
+\caption{Multi-Omics Data Harmonisation Workflow}
+\label{alg:harmonisation}
 \begin{algorithmic}[1]
-\State \textbf{Input:} A pre-trained model, number\_of\_classes.
-\State Identify the classification layer within the model’s prediction head.
-\State Determine the number of input features, $in\_features$, to this layer.
-\State Create a new classification layer with $in\_features$ as its input size and number\_of\_classes as its output size.
-\State Replace the original classification layer in the model with the new classification layer.
-\State \textbf{Output:} The adapted model, ready for fine-tuning.
+\State \textbf{Input:} Raw omics matrices $\{X_1, X_2, \ldots, X_K\}$ from $K$ data sources; sample metadata tables.
+\For{each source $k = 1$ to $K$}
+    \State Apply quality control filters (missing rate $< 0.20$, sample call rate $> 0.95$).
+    \State Align sample identifiers across omics layers using shared subject IDs.
+    \State Infer and correct for ancestry using the first 10 genomic principal components.
+    \State Apply ComBat-seq (RNA-seq) or ComBat (methylation arrays, metabolomics) for batch correction.
+    \State Normalise features: TMM for RNA-seq; beta-to-M-value for methylation; log-transform + autoscaling for metabolomics.
+\EndFor
+\State Retain only samples with data present in $\geq 2$ omics layers.
+\State \textbf{Output:} Harmonised, batch-corrected omics matrices with a matched sample manifest.
 \end{algorithmic}
 \end{algorithm}
 
-\subsection{Training and Evaluation Protocol}
-The entire benchmark was orchestrated by a single script (`benchmark.py`) that follows the workflow illustrated in Figure \ref{fig:workflow}. Key hyperparameters were managed in an external configuration file for consistency. All models were trained for 10 epochs using a batch size of 4, with the Adam optimizer and an initial learning rate of 0.005. To avoid re-running completed experiments, a JSON-based cache recorded the results of each model-configuration pair.
+\subsection{Stage 2: Single-Layer Analysis (Prior to Integration)}
 
-\begin{figure}[h!]
-\centering
-\includegraphics[width=\columnwidth]{figs/training_workflow.png}
-\caption{The end-to-end workflow for training and evaluating a model, from configuration and data loading to evaluation and caching.}
-\label{fig:workflow}
-\end{figure}
+Before integration, each omics layer will be independently analysed to characterise LBD-associated signals and estimate effect sizes:
 
-Model performance was evaluated using the Mean Average Precision (mAP) metric, as implemented in the `torchmetrics` library. The mAP score was calculated on the held-out test set, following the standard COCO evaluation protocol. This protocol averages precision across ten different Intersection over Union (IoU) thresholds, from 0.50 to 0.95, providing a comprehensive and standardized measure of each model's detection accuracy.
+\begin{itemize}
+    \item \textbf{Genomics:} Polygenic risk score (PRS) computation using GWAS summary statistics \cite{chia2025gwas}. Rare variant burden tests for \textit{GBA1} variants using whole-genome sequencing data.
+    \item \textbf{Epigenomics:} Differentially methylated position (DMP) and differentially methylated region (DMR) analysis in brain and blood samples using \texttt{limma} and \texttt{DMRcate} (R packages), replicating and extending \cite{nabais2024methylation}.
+    \item \textbf{Transcriptomics:} Differential gene expression (DGE) analysis using \texttt{DESeq2}. Gene set enrichment analysis (GSEA) against MSigDB hallmark and Reactome gene sets.
+    \item \textbf{Metabolomics:} Multivariate statistical analysis (PLS-DA, OPLS-DA) to identify discriminant metabolite features. Pathway mapping using the \texttt{MetaboAnalyst} platform \cite{frontiers2024metabolomics}.
+    \item \textbf{Immunomics:} Re-analysis of publicly available single-cell data \cite{singlecell2024immune} using \texttt{Seurat} (R) for clustering, cell-type annotation, and differential abundance testing.
+\end{itemize}
+
+\subsection{Stage 3: Multi-Omics Integration}
+
+Two complementary integration strategies will be applied to exploit the strengths of different methodological paradigms.
+
+\subsubsection{Strategy A: Unsupervised Factor Analysis (MOFA+)}
+Multi-Omics Factor Analysis Plus (MOFA+) \cite{argelaguet2020mofa} will be applied to identify latent factors that explain shared and unique variance across omics layers. Each factor represents a coordinated mode of biological variation; factors will be annotated by their top feature weights and tested for association with clinical variables (DLB/PDD status, disease duration, cognitive scores). This approach handles missing data natively, making it well-suited to the incomplete sample overlap expected across layers.
+
+\subsubsection{Strategy B: Similarity Network Fusion (SNF)}
+SNF \cite{wang2014snf} will be applied for patient-level integration, constructing per-layer similarity networks and iteratively fusing them into a consensus patient similarity network. Spectral clustering of the fused network will reveal LBD molecular subtypes. The robustness of identified subtypes will be assessed by stability analysis (bootstrap resampling, $n = 1000$) and correlation with clinical and neuropathological variables.
+
+\subsection{Stage 4: Downstream Analysis and Validation}
+
+\subsubsection{Biomarker Model Development}
+A supervised machine learning classifier (L1-penalised logistic regression / LASSO) will be trained on integrated multi-omics features to distinguish: (i) LBD vs. AD, (ii) DLB vs. PDD, and (iii) early vs. late LBD. Performance will be evaluated by cross-validated AUROC (area under the receiver operating characteristic curve). A feature importance analysis will yield a minimal discriminant signature.
+
+\subsubsection{Pathway Convergence and Drug Target Analysis}
+Convergent pathway scoring will quantify how many independently significant features from each omics layer map onto a given biological pathway (Reactome, KEGG). Mendelian randomisation using GWAS instruments \cite{chia2025gwas, nalls2019pd} will test putative causal relationships between multi-omics features and LBD risk. Top-ranked targets will be queried against the Open Targets Platform and ChEMBL for existing druggability evidence.
