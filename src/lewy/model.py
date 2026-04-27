@@ -22,14 +22,15 @@ def build_classifier(l1_ratios: list[float] | None = None) -> Pipeline:
     if l1_ratios is None:
         l1_ratios = [0.0, 0.1, 0.5, 0.9, 1.0]
     clf = LogisticRegressionCV(
-        penalty="elasticnet",
         solver="saga",
         cv=5,
         Cs=20,
         l1_ratios=l1_ratios,
+        scoring="neg_log_loss",
         max_iter=2000,
         random_state=42,
         n_jobs=-1,
+        use_legacy_attributes=False,
     )
     return Pipeline([("scaler", StandardScaler()), ("clf", clf)])
 
