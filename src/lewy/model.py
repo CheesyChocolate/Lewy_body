@@ -7,10 +7,13 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from sklearn.base import clone
 from sklearn.linear_model import LogisticRegressionCV
-from sklearn.model_selection import RepeatedStratifiedKFold, cross_val_score
+from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import StratifiedKFold
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
+from tqdm import tqdm
 
 
 def build_classifier(l1_ratios: list[float] | None = None) -> Pipeline:
@@ -43,6 +46,7 @@ def repeated_stratified_cv(
     n_repeats: int = 100,
     random_state: int = 42,
     cache_path: Path | None = None,
+    desc: str = "CV",
 ) -> np.ndarray:
     """Run repeated stratified k-fold CV and return per-fold AUROC array.
 
@@ -50,26 +54,34 @@ def repeated_stratified_cv(
     """
     if cache_path is not None and cache_path.exists():
         with open(cache_path) as f:
-            return np.array(json.load(f))
+            aucs = np.array(json.load(f))
+        tqdm.write(f"  {desc}: loaded {len(aucs)} cached fold AUCs")
+        return aucs
 
-    cv = RepeatedStratifiedKFold(
-        n_splits=n_splits, n_repeats=n_repeats, random_state=random_state
-    )
-    aucs = cross_val_score(
-        clf,
-        X.values,
-        y.values,
-        cv=cv,
-        scoring="roc_auc",
-        n_jobs=-1,
-    )
+    X_arr = X.values
+    y_arr = y.values
+    aucs = []
 
+    with tqdm(total=n_repeats, desc=f"  {desc}", unit="repeat") as pbar:
+        for repeat in range(n_repeats):
+            cv = StratifiedKFold(
+                n_splits=n_splits, shuffle=True, random_state=random_state + repeat
+            )
+            for train_idx, test_idx in cv.split(X_arr, y_arr):
+                clf_fold = clone(clf)
+                clf_fold.fit(X_arr[train_idx], y_arr[train_idx])
+                proba = clf_fold.predict_proba(X_arr[test_idx])[:, 1]
+                aucs.append(roc_auc_score(y_arr[test_idx], proba))
+            pbar.update(1)
+            pbar.set_postfix(auc=f"{np.mean(aucs):.3f}")
+
+    result = np.array(aucs)
     if cache_path is not None:
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         with open(cache_path, "w") as f:
-            json.dump(aucs.tolist(), f)
+            json.dump(result.tolist(), f)
 
-    return aucs
+    return result
 
 
 def compute_auc_ci(aucs: np.ndarray, ci: float = 0.95) -> tuple[float, float, float]:

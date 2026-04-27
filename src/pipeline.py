@@ -99,7 +99,7 @@ def main(output_dir: str, full: bool, no_cache: bool) -> None:
         clf = build_classifier()
         cache = None if no_cache else met_dir / f"cv_aucs_{pair}.json"
         aucs = repeated_stratified_cv(
-            clf, X_with_cov, y_sub, n_repeats=n_repeats, cache_path=cache
+            clf, X_with_cov, y_sub, n_repeats=n_repeats, cache_path=cache, desc=pair
         )
         mean_auc, lo, hi = compute_auc_ci(aucs)
         click.echo(

@@ -5,6 +5,7 @@ from __future__ import annotations
 import pandas as pd
 import statsmodels.formula.api as smf
 from statsmodels.stats.multitest import multipletests
+from tqdm import tqdm
 
 
 def filter_by_lod(X: pd.DataFrame, lod_frac: float = 0.85) -> pd.DataFrame:
@@ -44,7 +45,9 @@ def differential_proteins(
     meta_sub["Sex_num"] = (meta_sub["Sex"] == "Male").astype(int)
 
     results = []
-    for prot in X_sub.columns:
+    for prot in tqdm(
+        X_sub.columns, desc=f"{group_b} vs {group_a}", unit="protein", leave=False
+    ):
         data = meta_sub.copy()
         data["y"] = X_sub[prot].values
         data = data.dropna(subset=["y", "Age", "Sex_num"])
