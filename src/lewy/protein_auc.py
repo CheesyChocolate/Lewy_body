@@ -46,7 +46,7 @@ def compute_protein_aucs(
     X_sub = X.loc[mask]
     y_sub = y.loc[mask].astype(int)
     meta_sub = meta.loc[mask].copy()
-    meta_sub["Sex_num"] = (meta_sub["Sex"] == "Male").astype(float)
+    meta_sub["Sex_num"] = (meta_sub["Sex"].str.lower() == "male").astype(float)
 
     scaler = StandardScaler()
     age_sex = scaler.fit_transform(meta_sub[["Age", "Sex_num"]].fillna(0))

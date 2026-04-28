@@ -42,7 +42,7 @@ def differential_proteins(
     X_sub = X.loc[mask]
     meta_sub = meta.loc[mask].copy()
     meta_sub["group"] = (meta_sub["Dx_group"] == group_b).astype(int)
-    meta_sub["Sex_num"] = (meta_sub["Sex"] == "Male").astype(int)
+    meta_sub["Sex_num"] = (meta_sub["Sex"].str.lower() == "male").astype(int)
 
     results = []
     for prot in tqdm(

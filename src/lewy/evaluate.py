@@ -44,7 +44,7 @@ def validate_on_cohort(
     if "Age" in meta_sub.columns:
         X_sub["Age"] = meta_sub["Age"].values
     if "Sex" in meta_sub.columns:
-        X_sub["Sex_num"] = (meta_sub["Sex"] == "Male").astype(float).values
+        X_sub["Sex_num"] = (meta_sub["Sex"].str.lower() == "male").astype(float).values
 
     fpr, tpr, auc = roc_curve_data(clf, X_sub, y_sub)
     return {

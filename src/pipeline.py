@@ -90,7 +90,7 @@ def main(output_dir: str, full: bool, no_cache: bool) -> None:
 
         # Include age + sex as covariates alongside proteins
         cov = meta.loc[y.index, ["Age", "Sex"]].copy()
-        cov["Sex_num"] = (cov["Sex"] == "Male").astype(float)
+        cov["Sex_num"] = (cov["Sex"].str.lower() == "male").astype(float)
         cov = cov[["Age", "Sex_num"]]
         X_with_cov = pd.concat(
             [X_sub.reset_index(drop=True), cov.reset_index(drop=True)], axis=1
@@ -150,7 +150,7 @@ def main(output_dir: str, full: bool, no_cache: bool) -> None:
         y = encode_labels(meta["Dx_group"], pos, neg).dropna()
         X_panel = X.loc[y.index, [p for p in val_proteins if p in X.columns]]
         cov = meta.loc[y.index, ["Age", "Sex"]].copy()
-        cov["Sex_num"] = (cov["Sex"] == "Male").astype(float)
+        cov["Sex_num"] = (cov["Sex"].str.lower() == "male").astype(float)
         X_train = pd.concat(
             [
                 X_panel.reset_index(drop=True),
