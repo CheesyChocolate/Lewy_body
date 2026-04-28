@@ -175,6 +175,16 @@ cython_debug/
 
 # Other files
 
+# LaTeX build artefacts
+docs/presentation/_latexmk/
+*.aux
+*.nav
+*.snm
+*.toc
+*.out
+*.fls
+*.fdb_latexmk
+
 archive/
 src/workflow.py
 AGENTS.md
