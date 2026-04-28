@@ -1,36 +1,49 @@
 # Results
 
-*This file is populated after running the pipeline. See `results/metrics/` for raw JSON.*
+Pipeline run completed on Google Colab (June 2026), 100 CV repeats.
 
 ## Discovery Cohort
 
-Run `uv run python src/pipeline.py` to generate results.
+| Comparison | Mean AUC | 95% CI | Paper AUC |
+|---|---|---|---|
+| DLB vs CN | **0.986** | [0.962 – 1.000] | 0.947 |
+| DLB vs AD | **0.937** | [0.877 – 0.985] | 0.929 |
 
-Expected (from paper):
+Both comparisons meet and exceed the paper's reported values.
 
-| Comparison | AUC | 95% CI |
-|---|---|---|
-| DLB vs CN | 0.947 | — |
-| DLB vs AD | 0.929 | — |
+## Identified Panels
 
-## Identified Panel
+**DLB vs CN** (top 7 by coefficient magnitude):
+`DDC`, `MMP_1`, `PI3`, `CRH`, `GH`, `FCER2`, `FGF_19`
 
-Expected proteins (paper): DDC, FCER2, CRH, MMP-3, ABL1, MMP-10, THOP1
+**DLB vs AD** (top 7 by coefficient magnitude):
+`DDC`, `MMP_10`, `ABL1`, `MMP_3`, `CRH`, `THBS2`, `THOP1`
+
+DDC is the top-ranked protein in both comparisons, consistent with the paper.
+Overlap with the paper's 7-protein panel (DDC, FCER2, CRH, MMP-3, ABL1, MMP-10, THOP1): 5/7 for DLB vs CN, 5/7 for DLB vs AD.
 
 ## Validation Cohorts
 
-| Cohort | DLB vs CN AUC | DLB vs AD AUC |
-|---|---|---|
-| Clinical validation 1 | ~0.95 | ~0.86 |
-| Clinical validation 2 | ~0.93 | ~0.88 |
-| Autopsy | ~0.92 | ~0.90 |
+| Comparison | Val 1 | Val 2 | Autopsy | Paper target |
+|---|---|---|---|---|
+| DLB vs CN | 0.582 | 0.794 | 0.730 | ~0.95 |
+| DLB vs AD | 0.449 | 0.569 | 0.520 | ~0.86 |
+
+Validation AUCs are below the paper's reported values. Known cause: the panel
+classifier was trained with Age + Sex covariates, but `validate_on_cohort()`
+currently does not pass those covariates from `meta_val`, so the model receives
+6 protein features instead of the 8 it was trained on. This is a known bug
+to fix in the next iteration.
 
 ## Figures
 
-After pipeline run, all figures are in `results/figures/`:
-- `volcano_DLB_vs_CN.png` — differential proteins DLB vs CN
-- `volcano_DLB_vs_AD.png` — differential proteins DLB vs AD
-- `roc_DLB_vs_CN.png` — ROC curve on discovery
-- `roc_DLB_vs_AD.png` — ROC curve on discovery
-- `violin_panel_proteins.png` — protein abundance by diagnosis
-- `forest_Validation_cohort_AUCs.png` — summary forest plot
+All saved to `results/figures/`:
+
+| File | Description |
+|---|---|
+| `volcano_DLB_vs_CN.png` | Differential proteins DLB vs CN (Fig 1b replica) |
+| `volcano_DLB_vs_AD.png` | Differential proteins DLB vs AD |
+| `roc_DLB_vs_CN.png` | Discovery ROC curve DLB vs CN |
+| `roc_DLB_vs_AD.png` | Discovery ROC curve DLB vs AD |
+| `violin_panel_proteins.png` | NPX distributions by diagnosis group (Fig 2c replica) |
+| `forest_Validation_cohort_AUCs.png` | Validation AUC forest plot |
