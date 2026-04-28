@@ -5,15 +5,21 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import warnings
+
 import numpy as np
 import pandas as pd
 from sklearn.base import clone
+from sklearn.exceptions import ConvergenceWarning
 from sklearn.linear_model import LogisticRegressionCV
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import StratifiedKFold
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
+
+warnings.filterwarnings("ignore", category=ConvergenceWarning)
+warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
 
 
 def build_classifier(l1_ratios: list[float] | None = None) -> Pipeline:
@@ -33,7 +39,6 @@ def build_classifier(l1_ratios: list[float] | None = None) -> Pipeline:
         max_iter=2000,
         random_state=42,
         n_jobs=-1,
-        use_legacy_attributes=False,
     )
     return Pipeline([("scaler", StandardScaler()), ("clf", clf)])
 
