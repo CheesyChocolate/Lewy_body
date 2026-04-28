@@ -10,10 +10,10 @@
 \usepackage{amssymb}
 \usepackage{hyperref}
 
-\title{Reproducing and Extending a CSF Proteomics ML Pipeline}
-\subtitle{del Campo et al.\ (2023) — Python Recreation and Improvement}
-\author{Suren Behnamlal}
-\date{Data Science — Computer Engineering}
+\title{CSF Proteomics ML Pipeline}
+\subtitle{Reproducing and Extending}
+\author{Behnam Lal Moghaddam}
+\date{\today}
 
 \begin{document}
 
@@ -22,17 +22,17 @@
 \end{frame}
 
 % ── Slide 2 ────────────────────────────────────────────────────────────────
-\begin{frame}{The Diagnostic Problem}
+\begin{frame}[shrink=8]{The Diagnostic Problem}
     \begin{columns}
         \begin{column}{0.52\textwidth}
             \begin{alertblock}{The Overlap}
-                Dementia with Lewy bodies (DLB) and Alzheimer's disease share amyloid and tau pathology in roughly 50\% of cases. They cannot be reliably distinguished by symptoms alone in early stages.
+                DLB and AD share amyloid and tau pathology in $\sim$50\% of cases — they cannot be distinguished by symptoms alone in early stages.
             \end{alertblock}
             \begin{block}{The Scale}
-                DLB is the second most common neurodegenerative dementia after Alzheimer's disease. It progresses faster and responds differently to treatment — misdiagnosis causes real harm.
+                DLB is the second most common neurodegenerative dementia. It progresses faster than AD and responds differently to treatment — misdiagnosis causes direct harm.
             \end{block}
             \begin{exampleblock}{The CSF Window}
-                Cerebrospinal fluid is in direct biochemical contact with the brain and carries protein signatures of neurodegeneration. It is the richest accessible source of diagnostic biomarkers.
+                Cerebrospinal fluid circulates directly around the brain, carrying protein signatures of neurodegeneration — the richest accessible window for diagnostic biomarkers.
             \end{exampleblock}
         \end{column}
         \begin{column}{0.43\textwidth}
@@ -61,14 +61,11 @@
     \begin{columns}
         \begin{column}{0.52\textwidth}
             \begin{block}{Olink PEA: What the Machine Produces}
-                Each sample becomes a vector of 664 NPX values — log2-scale relative protein abundances. Measured from a small CSF volume using antibody pairs with unique DNA-barcode readout.
+                Each sample becomes a vector of 664 NPX values — log2-scale relative protein abundances — measured from a small CSF volume using antibody pairs with unique DNA-barcode readout. Only proteins detected in $\geq$85\% of samples are retained.
             \end{block}
-            \begin{exampleblock}{From the ML Perspective}
-                Input matrix \textbf{X}: 534 rows $\times$ 664 features. Labels \textbf{y}: DLB = 109, AD = 235, CN = 190. Two binary classification tasks: \textbf{DLB vs CN} and \textbf{DLB vs AD}.
+            \begin{exampleblock}{The Classification Problem}
+                Input matrix \textbf{X}: 534 rows $\times$ 664 features, plus Age and Sex as covariates. Labels \textbf{y}: DLB = 109, AD = 235, CN = 190. Two binary tasks: \textbf{DLB vs CN} and \textbf{DLB vs AD}.
             \end{exampleblock}
-            \begin{alertblock}{LOD Filter}
-                85\% limit-of-detection threshold applied before modelling. Proteins detected in fewer than 85\% of samples are dropped. 665 proteins survive to 664 after filtering.
-            \end{alertblock}
         \end{column}
         \begin{column}{0.43\textwidth}
             \begin{center}
@@ -81,7 +78,7 @@
 % ── Slide 5 ────────────────────────────────────────────────────────────────
 \begin{frame}{The Original ML Pipeline}
     \begin{block}{Step 1: Differential Analysis}
-        Per-protein linear model: \texttt{NPX \textasciitilde\ Diagnosis + Age + Sex}. Benjamini-Hochberg FDR correction at q < 0.05. Run separately for DLB vs CN and DLB vs AD to identify dysregulated proteins.
+        Per-protein linear model: \texttt{NPX \textasciitilde\ Diagnosis + Age + Sex}. Benjamini-Hochberg FDR correction at $q < 0.05$. Run separately for DLB vs CN and DLB vs AD to identify dysregulated proteins.
     \end{block}
     \begin{alertblock}{Step 2: ECPC Classification}
         Empirical Bayes Co-data Penalised Classification — a Bayesian ridge regression that uses protein group priors to set per-group regularisation strength. Produces a dense model over all 664 proteins. \textbf{No Python equivalent exists.}
@@ -134,7 +131,7 @@
                 Our AUC: \textbf{0.937} [0.877--0.985]. Paper: 0.929. Panel overlap: 5 of 7 proteins match the paper's reported panel.
             \end{block}
             \begin{exampleblock}{Faithful Recreation}
-                Both comparisons match or exceed the paper's reported AUCs. The elastic net substitution is validated. Age and Sex included as covariates alongside protein NPX.
+                Both comparisons match or exceed the paper's AUCs. Elastic net as a drop-in for ECPC is validated — the method substitution holds.
             \end{exampleblock}
         \end{column}
         \begin{column}{0.43\textwidth}
@@ -146,10 +143,22 @@
 \end{frame}
 
 % ── Slide 9 ────────────────────────────────────────────────────────────────
-\begin{frame}{Discovery ROC Curves}
-    \begin{center}
-        \includegraphics[width=0.72\textwidth]{figs/roc_DLB_vs_CN.png}
-    \end{center}
+\begin{frame}[shrink=12]{Discovery ROC Curves}
+    \begin{columns}
+        \begin{column}{0.42\textwidth}
+            \begin{block}{Reading the Curve}
+                Each point is a decision threshold. The area under the curve equals the probability the model ranks a random DLB patient above a random control — 0.5 is chance, 1.0 is perfect.
+            \end{block}
+            \begin{exampleblock}{Full-Fit vs CV AUC}
+                Full-fit AUC is 1.000 — expected on training data. The honest estimate is the cross-validated \textbf{0.986}, from 500 held-out folds the model never saw during training.
+            \end{exampleblock}
+        \end{column}
+        \begin{column}{0.54\textwidth}
+            \begin{center}
+                \includegraphics[width=\textwidth]{figs/roc_DLB_vs_CN.png}
+            \end{center}
+        \end{column}
+    \end{columns}
 \end{frame}
 
 % ── Slide 10 ───────────────────────────────────────────────────────────────
@@ -168,14 +177,14 @@
 % ── Slide 11 ───────────────────────────────────────────────────────────────
 \begin{frame}{Per-Protein Biomarker Landscape}
     \begin{center}
-        \includegraphics[width=0.88\textwidth]{figs/protein_aucs.png}
+        \includegraphics[width=0.88\textwidth, height=0.80\textheight, keepaspectratio]{figs/protein_aucs_pres.png}
     \end{center}
 \end{frame}
 
 % ── Slide 12 ───────────────────────────────────────────────────────────────
 \begin{frame}{Takeaways}
     \begin{alertblock}{Reproducibility is Engineering}
-        A 2399-line R script is not a pipeline. Modular, CLI-driven, importable Python code is the engineering standard — and it makes the science extensible by anyone with \texttt{pip install}.
+        A 2399-line monolithic R script is not a reusable pipeline. A reproducible analysis is one that any collaborator can re-run, extend, and audit — and that is an engineering problem, not a science problem.
     \end{alertblock}
     \begin{block}{Method Substitution Works}
         Elastic net as a drop-in for ECPC reproduces the paper's core results. When no Python equivalent exists, understand the method well enough to approximate it faithfully — and validate empirically.
