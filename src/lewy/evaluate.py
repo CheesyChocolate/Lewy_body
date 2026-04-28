@@ -29,23 +29,22 @@ def validate_on_cohort(
 ) -> dict:
     """Evaluate a fitted clf on a validation cohort.
 
+    Mirrors the training feature set: protein columns + Age + Sex_num covariates.
     Returns dict with fpr, tpr, auc, and n_samples.
     """
     from .data import encode_labels
 
     y_val = encode_labels(meta_val["Dx_group"], positive_label, negative_label)
     mask = y_val.notna()
-    X_sub = X_val.loc[mask]
+    X_sub = X_val.loc[mask].copy()
     y_sub = y_val.loc[mask].astype(int)
+    meta_sub = meta_val.loc[mask].copy()
 
-    # Keep only proteins the classifier was trained on
-    train_features = (
-        clf.feature_names_in_
-        if hasattr(clf, "feature_names_in_")
-        else X_sub.columns.tolist()
-    )
-    shared = [c for c in train_features if c in X_sub.columns]
-    X_sub = X_sub[shared]
+    # Append Age + Sex_num covariates to match training feature set
+    if "Age" in meta_sub.columns:
+        X_sub["Age"] = meta_sub["Age"].values
+    if "Sex" in meta_sub.columns:
+        X_sub["Sex_num"] = (meta_sub["Sex"] == "Male").astype(float).values
 
     fpr, tpr, auc = roc_curve_data(clf, X_sub, y_sub)
     return {
