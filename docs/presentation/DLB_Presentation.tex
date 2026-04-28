@@ -95,11 +95,11 @@
 \begin{frame}{What We Built}
     \begin{columns}
         \begin{column}{0.52\textwidth}
-            \begin{block}{Python Package: \texttt{src/lewy/}}
-                Five focused modules: \texttt{data}, \texttt{features}, \texttt{model}, \texttt{evaluate}, \texttt{plots}. Each module does one job and can be imported independently. No global state, no interactive execution required.
+            \begin{block}{A Reproducible Data Pipeline}
+                Raw protein matrix $\rightarrow$ covariate-adjusted differential analysis $\rightarrow$ repeated cross-validated classifier $\rightarrow$ held-out evaluation $\rightarrow$ figures. Each stage is independently re-runnable; results are cached so the slow CV step does not block downstream analysis.
             \end{block}
-            \begin{exampleblock}{Two Runnable Entry Points}
-                \texttt{pipeline.py}: full recreation with CLI flags (\texttt{-{}-full}, \texttt{-{}-no-cache}, \texttt{-{}-output-dir}). \texttt{protein\_auc\_pipeline.py}: the improvement, runs independently. Both execute identically on Colab.
+            \begin{exampleblock}{Data Engineering Decisions}
+                Age and Sex added as covariates at every stage — not just in the classifier but in the differential analysis model too. Stratified splits ensure class balance is preserved across 500 held-out evaluations.
             \end{exampleblock}
         \end{column}
         \begin{column}{0.43\textwidth}
@@ -155,13 +155,13 @@
 % ── Slide 10 ───────────────────────────────────────────────────────────────
 \begin{frame}{The Improvement}
     \begin{alertblock}{The Paper's Blind Spot}
-        del Campo et al.\ report DDC's individual AUC as a headline result but only examine a handful of proteins in isolation. The remaining 657 proteins have no individual discriminative analysis.
+        del Campo et al.\ report DDC's individual AUC as a headline result but examine only a handful of proteins in isolation. The remaining 657 proteins receive no individual discriminative analysis.
     \end{alertblock}
-    \begin{block}{What We Added}
-        For each of the 664 proteins, fit a covariate-adjusted logistic regression on [\texttt{protein\_npx}, \texttt{Age}, \texttt{Sex}]. Compute AUROC for every protein independently. 664 models, one per protein, run in \textasciitilde 3 minutes on Colab CPU.
+    \begin{block}{Systematic Univariate Screening}
+        For each of the 664 proteins, fit a covariate-adjusted logistic regression on [protein NPX, Age, Sex] and compute AUROC. Each model is a separate, independent 3-feature classification problem. This extends the paper's spotlight finding into a full proteome-wide ranking.
     \end{block}
-    \begin{exampleblock}{The Engineering Angle}
-        Vectorised over all proteins with a tqdm progress bar. Outputs a full ranked biomarker landscape. Surfaces competitive candidates not in the original panel — a contribution the original paper does not make.
+    \begin{exampleblock}{Why This Is a Contribution}
+        The multi-protein panel answers ``what is the best combination?'' The per-protein ranking answers ``which proteins carry individual diagnostic value?'' — the right question for a single-marker clinical test. These are complementary, not redundant.
     \end{exampleblock}
 \end{frame}
 
