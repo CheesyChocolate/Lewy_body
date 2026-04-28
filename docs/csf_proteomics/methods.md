@@ -39,6 +39,21 @@
 ### Why Elastic Net Instead of ECPC
 ECPC is a proprietary Bayesian R package with no Python equivalent. The paper's internal validation step itself uses elastic net (glmnet) for the panel selection. Elastic net with a ridge-dominant l1_ratio closely approximates the ECPC regularisation profile. AUC results are expected to be within ~0.01–0.02 of the paper's reported values.
 
+## Individual Protein AUC Analysis (Improvement)
+
+The paper reports DDC's standalone AUC (0.91 DLB vs CN, 0.81 DLB vs AD) as a headline finding but only for a handful of proteins. This improvement extends that analysis systematically to all 664 proteins.
+
+**Method:** for each protein, fit a univariate logistic regression on `[protein_npx, Age, Sex_num]` and compute `roc_auc_score` from predicted probabilities. Using `LogisticRegression` (not CV) since no hyperparameter search is needed for a 3-feature model.
+
+**Output:** proteins ranked by AUC descending, with panel protein membership flagged. A two-panel ranked bar chart highlights where the 7 panel proteins sit in the full distribution.
+
+**Run independently:**
+```bash
+uv run python src/protein_auc_pipeline.py
+```
+
+This produces `results/metrics/protein_aucs_DLB_vs_CN.json`, `protein_aucs_DLB_vs_AD.json`, and `results/figures/protein_aucs.png` without touching the original pipeline.
+
 ## Output
 
 | File | Contents |
@@ -49,3 +64,6 @@ ECPC is a proprietary Bayesian R package with no Python equivalent. The paper's 
 | `results/figures/roc_*.png` | ROC curves |
 | `results/figures/violin_panel_proteins.png` | NPX distributions per diagnosis |
 | `results/figures/forest_*.png` | Forest plot of validation AUCs |
+| `results/metrics/protein_aucs_DLB_vs_CN.json` | Per-protein AUC ranked list (DLB vs CN) |
+| `results/metrics/protein_aucs_DLB_vs_AD.json` | Per-protein AUC ranked list (DLB vs AD) |
+| `results/figures/protein_aucs.png` | Ranked bar chart of all 664 protein AUCs |

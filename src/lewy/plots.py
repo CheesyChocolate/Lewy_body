@@ -153,3 +153,82 @@ def plot_violin(
 
         fig.tight_layout()
         _save(fig, "violin_panel_proteins", out_dir)
+
+
+def plot_protein_aucs(
+    auc_cn: pd.DataFrame,
+    auc_ad: pd.DataFrame,
+    out_dir: Path | None = None,
+    top_n: int = 40,
+) -> None:
+    """Ranked bar chart of per-protein AUROCs for DLB vs CN and DLB vs AD.
+
+    Shows the top_n proteins by AUC in each comparison. Panel proteins are
+    highlighted in a distinct colour. Reference lines at AUC=0.5 and AUC=0.8.
+    Saves as protein_aucs.png.
+    """
+    PANEL_COLOR = "#e74c3c"
+    DEFAULT_COLOR = "#95a5a6"
+    REF_COLORS = {"0.5 (chance)": "#bdc3c7", "0.8 (good)": "#e67e22"}
+
+    with plt.rc_context(STYLE):
+        fig, axes = plt.subplots(1, 2, figsize=(14, top_n * 0.22 + 2), sharey=False)
+
+        for ax, auc_df, title in zip(
+            axes,
+            [auc_cn, auc_ad],
+            ["DLB vs CN", "DLB vs AD"],
+        ):
+            top = auc_df.head(top_n).copy()
+            colors = [
+                PANEL_COLOR if flag else DEFAULT_COLOR for flag in top["in_panel"]
+            ]
+
+            ax.barh(
+                range(len(top)),
+                top["auc"],
+                color=colors,
+                edgecolor="none",
+                height=0.75,
+            )
+            ax.axvline(
+                0.5,
+                color=REF_COLORS["0.5 (chance)"],
+                lw=1.2,
+                ls="--",
+                label="0.5 (chance)",
+            )
+            ax.axvline(
+                0.8, color=REF_COLORS["0.8 (good)"], lw=1.2, ls="--", label="0.8 (good)"
+            )
+
+            ax.set_yticks(range(len(top)))
+            ax.set_yticklabels(top["protein"], fontsize=7)
+            ax.invert_yaxis()
+            ax.set_xlim(0.4, 1.02)
+            ax.set_xlabel("AUROC")
+            ax.set_title(title, fontweight="bold")
+            ax.legend(fontsize=7, loc="lower right")
+
+            # Highlight panel protein labels
+            for i, (_, row) in enumerate(top.iterrows()):
+                if row["in_panel"]:
+                    ax.get_yticklabels()[i].set_color(PANEL_COLOR)
+                    ax.get_yticklabels()[i].set_fontweight("bold")
+
+        # Shared legend for bar colours
+        from matplotlib.patches import Patch
+
+        legend_elements = [
+            Patch(facecolor=PANEL_COLOR, label="Panel protein"),
+            Patch(facecolor=DEFAULT_COLOR, label="Other protein"),
+        ]
+        fig.legend(
+            handles=legend_elements,
+            loc="lower center",
+            ncol=2,
+            fontsize=8,
+            bbox_to_anchor=(0.5, -0.01),
+        )
+        fig.tight_layout(rect=[0, 0.03, 1, 1])
+        _save(fig, "protein_aucs", out_dir)

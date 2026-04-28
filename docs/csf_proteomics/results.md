@@ -35,6 +35,12 @@ currently does not pass those covariates from `meta_val`, so the model receives
 6 protein features instead of the 8 it was trained on. This is a known bug
 to fix in the next iteration.
 
+## Per-Protein AUC Analysis
+
+Run `uv run python src/protein_auc_pipeline.py` to generate.
+
+Top proteins are expected to include DDC (paper reports AUC 0.91 DLB vs CN, 0.81 DLB vs AD as the strongest individual biomarker). Results will populate `results/metrics/protein_aucs_*.json` once the analysis is run on Colab.
+
 ## Figures
 
 All saved to `results/figures/`:
