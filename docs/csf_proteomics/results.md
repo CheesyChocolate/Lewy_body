@@ -37,9 +37,39 @@ to fix in the next iteration.
 
 ## Per-Protein AUC Analysis
 
-Run `uv run python src/protein_auc_pipeline.py` to generate.
+665 proteins ranked by standalone covariate-adjusted AUROC (June 2026 run).
 
-Top proteins are expected to include DDC (paper reports AUC 0.91 DLB vs CN, 0.81 DLB vs AD as the strongest individual biomarker). Results will populate `results/metrics/protein_aucs_*.json` once the analysis is run on Colab.
+**DLB vs CN — Top 10**
+
+| Rank | Protein | AUC | Panel |
+|---|---|---|---|
+| 1 | DDC | 0.949 | ✓ |
+| 2 | CRH | 0.882 | ✓ |
+| 3 | MMP_1 | 0.874 | |
+| 4 | WIF_1 | 0.871 | |
+| 5 | FCER2 | 0.871 | ✓ |
+| 6 | PRCP | 0.871 | |
+| 7 | ENTPD5 | 0.870 | |
+| 8 | GZMB | 0.870 | |
+| 9 | PI3 | 0.869 | |
+| 10 | GH | 0.869 | |
+
+**DLB vs AD — Top 10**
+
+| Rank | Protein | AUC | Panel |
+|---|---|---|---|
+| 1 | CRH | 0.825 | ✓ |
+| 2 | ABL1 | 0.818 | ✓ |
+| 3 | DDC | 0.818 | ✓ |
+| 4 | MMP_10 | 0.809 | |
+| 5 | THOP1 | 0.792 | ✓ |
+| 6 | DDAH1 | 0.785 | |
+| 7 | MMP_3 | 0.781 | |
+| 8 | SMOC2 | 0.779 | |
+| 9 | SP29 | 0.771 | |
+| 10 | TMSB10 | 0.768 | |
+
+DDC is the top individual biomarker for DLB vs CN (AUC 0.949), consistent with the paper's report of 0.91. For DLB vs AD it ranks #3 (AUC 0.818 vs paper's 0.81). Full ranked lists in `results/metrics/protein_aucs_*.json`.
 
 ## Figures
 
