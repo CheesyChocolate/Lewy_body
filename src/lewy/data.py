@@ -7,7 +7,7 @@ from typing import Literal
 
 import pandas as pd
 
-DATA_DIR = Path(__file__).parent.parent.parent / "data"
+DATA_DIR = Path(__file__).parent.parent.parent / "data" / "del_campo_2023"
 
 DISCOVERY_FILE = DATA_DIR / "DataSet_PRIDE_DLBstudy.csv"
 VALIDATION_FILES = {
