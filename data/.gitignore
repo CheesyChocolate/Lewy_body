@@ -1,5 +1,4 @@
-/*
-
-# except
-!README.md
+**
+!*/
 !.gitignore
+!**/README.md
