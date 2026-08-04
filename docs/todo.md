@@ -1,0 +1,70 @@
+# TODO
+
+Living tracker for the DLB radiomics project. Update as items complete or new ones surface —
+don't let this drift stale. See `docs/data_acquisition.md` for the full data-acquisition
+rationale and `CLAUDE.md` for project orientation.
+
+## Done
+
+- Archived old CSF proteomics project (`archive_csf_proteomics/`, branch `archive/csf-proteomics-v1`).
+- Downloaded full ADNI tabular data (`ADNIMERGE2`, 215 tables) + converted to CSV.
+- Downloaded `AMPRION_ASYN_SAA` and `CSFALPHASYN` biospecimen tables (not in `ADNIMERGE2`).
+- Built SAA-positive cohort: 126 subjects with FDG-PET + MRI within 365 days of SAA draw
+  (`data/adni/dlb_cohort_candidates.csv`).
+- Built SAA-negative control cohort: 415 subjects, same logic
+  (`data/adni/saa_negative_controls.csv`).
+- Downloaded raw DICOM images for both cohorts (T1 MRI + FDG-PET, ~35 GB) to remote server
+  `Olympus` — see "In progress" below for getting them onto this workstation.
+
+## In progress
+
+- **Pull downloaded images from Olympus to this workstation.** Four zip files sit in
+  `~/adni_download/` on Olympus, not yet extracted locally: `DLB_SAApos_cohort_v2.zip`
+  (7.35 GB), `DLB_SAApos_cohort_v2_dataset.zip` (37.6 MB), `DLB_SAAneg_controls.zip`
+  (27.76 GB), `DLB_SAAneg_controls_dataset.zip` (77 MB, already pulled locally). Blocked on
+  slow local internet; resume with:
+  ```
+  cd data/adni/images
+  rsync -avP --partial -e ssh Olympus:~/adni_download/DLB_SAApos_cohort_v2/DLB_SAApos_cohort_v2.zip .
+  rsync -avP --partial -e ssh Olympus:~/adni_download/DLB_SAAneg_controls/DLB_SAAneg_controls.zip .
+  ```
+  `--partial` means these are resumable — safe to stop and restart. Once pulled, `unzip` each
+  into `data/adni/images/` and delete the zips.
+
+## Next
+
+- **Extract to one scan per subject.** Both image sets currently include every visit where a
+  qualifying MRI/FDG-PET scan exists, not just the one closest to each subject's SAA draw
+  date. Before feature extraction, filter down using the per-subject target dates already in
+  `dlb_cohort_candidates.csv` / `saa_negative_controls.csv` (columns `FDG_PET_EXAMDATE`,
+  `MRI_EXAMDATE`) — keep the other-visit scans on disk in case a longitudinal check is wanted
+  later, just don't feed them all into the initial model.
+- **Design the radiomics pipeline.** No `src/` code exists yet for this project. Needs: DICOM →
+  NIfTI conversion, PET/MRI co-registration (a la spatial normalization to an atlas or to the
+  MRI), tumor/region segmentation or atlas-based ROI extraction, radiomic feature extraction
+  (e.g. PyRadiomics), classifier (SAA+ vs SAA− as the primary label). Decide tooling
+  (PyRadiomics, nipype, ANTs/FSL, etc.) and directory layout before writing code.
+- **Decide role of OASIS data.** `data/oasis/` (oasis-1, oasis-2, oasis-scripts) is staged but
+  unused — unclear whether it's meant as an sMRI-only external validation set, a normal-aging
+  reference for atlas building, or something else. Needs a decision before it's wired in.
+- **Rewrite the differential/statistical framing for the new modality.** The old project's
+  `docs/knowledge.md` (now archived) had running notes on biological background and stats
+  choices for CSF proteomics — a fresh `docs/knowledge.md` should start once non-obvious
+  radiomics/imaging decisions start accumulating (e.g. why a given atlas, why a given
+  normalization scheme).
+
+## Deferred / not started
+
+- **E-DLB consortium external validation.** Referenced in `docs/advisor_notes/2.md` as a
+  possible future validation cohort. Not a public download — requires a data access request
+  to the consortium. No request has been made.
+- **Other PET tracers (amyloid, tau).** Out of scope for the primary FDG-PET target. Tabular
+  SUVR summaries are already present in `data/adni/tables/` if wanted as covariates later;
+  the underlying PET images were not downloaded.
+- **Raw genetic data (WGS/SNP arrays).** APOE genotype (the standard AD/DLB covariate) is
+  already in `data/adni/tables/APOERES.csv`. Full genetic data would only matter for a
+  polygenic-risk/GWAS-style analysis, not currently planned.
+- **Fix nested `.git` in `data/oasis/oasis-scripts/`.** That directory was cloned in place and
+  retains its own `.git/`, which isn't covered by `data/.gitignore`'s negation rules. Flagged
+  as a risk (could get added as a broken submodule gitlink if someone runs `git add -A` on
+  `data/`), not yet fixed.
