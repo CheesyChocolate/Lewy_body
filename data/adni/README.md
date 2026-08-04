@@ -35,6 +35,17 @@ against FDG-PET (`UCBERKELEYFDG_8mm`) and structural MRI (`UCSFFSX51`) scan date
 the closest scan within 365 days of the SAA draw. Output: `dlb_cohort_candidates.csv` (one
 row per SAA+ subject, with matched scan dates and day-offsets). Re-run after any data refresh.
 
+## Images
+
+`images/ADNI/<PTID>/<series description>/<acquisition date>/<image ID>/*.dcm` — raw DICOM
+series for the 126-subject cohort in `dlb_cohort_candidates.csv`: 341 T1 structural MRI series
+(`Image Description` wildcard `*SPGR*`, `Weighting=T1`, to exclude localizers/calibration
+scans) + 187 FDG-PET series (`Radiopharmaceutical` = 18F-FDG / Fluorodeoxyglucose F^18^),
+downloaded via IDA Advanced Search → Collection `DLB_SAApos_cohort` → Advanced Download (IDA
+Downloader jar, ~7.4 GB total). Multiple visits per subject may be present; not yet filtered
+to the single visit closest to the SAA draw date (see `dlb_cohort_candidates.csv` for the
+target date per subject).
+
 ## Relevant tables already present (for FDG-PET radiomics direction)
 
 - `UCBERKELEYFDG_8mm.csv`, `BAIPETNMRCFDG.csv` — FDG-PET regional/derived measures.
