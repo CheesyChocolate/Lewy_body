@@ -113,6 +113,24 @@ IP. Downloads run inside detached `tmux` sessions on Olympus (`adni_positive`,
 of going through its `launch.Launcher` entry point, though in the end plain `curl -C -`
 (resumable) was simpler and equally reliable, so that's what actually ran the transfer.
 
+### 5. SAA-negative control images — `data/adni/images/` (collection `DLB_SAAneg_controls`)
+
+A classifier needs a negative class, not just the 126 SAA-positive subjects. Built the
+same way as the positive cohort but starting from `AMPRION_ASYN_SAA.Result ==
+"Not_Detected"` (1,275 subjects) instead of `Detected-1`, saved to
+`data/adni/saa_negative_controls.csv`. Same FDG-PET/MRI-within-365-days filter →
+**415 SAA-negative subjects with both scans available** (688 have FDG-PET alone, 540
+have MRI alone). All 415 were pulled (not a size-matched subset), since 3x more
+negatives than positives is an acceptable, honestly-labeled class imbalance for now
+rather than an artificial deduplication; if balancing turns out to matter for the
+classifier, subsample at training time rather than re-downloading.
+
+Same search scoping as the positive cohort (T1 `*SPGR*` MRI + FDG-PET), collection
+`DLB_SAAneg_controls`: **1,024 MRI series + 608 PET series = 1,632 images, ~25.9 GB**.
+Downloaded straight to Olympus (learned from the positive-cohort run: let Olympus make
+the first real GET immediately, no need for a `_v2` regroup this time since the
+collection was newly created and never touched from the local workstation).
+
 ## What we deliberately did not get, and why
 
 - **Full-cohort images (all ~2,000+ ADNI subjects' MRI/PET).** Scope is the 126-subject
