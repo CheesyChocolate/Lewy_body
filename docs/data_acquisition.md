@@ -97,6 +97,22 @@ to each subject's SAA draw date**; that reduction should happen at preprocessing
 using the per-subject target dates already in `dlb_cohort_candidates.csv`, so we don't
 throw away the other-visit scans in case they're useful for a longitudinal check later.
 
+**Download mechanics note:** IDA's "Advanced Download" zip links are IP-locked — a real
+(non-HEAD) request against them only succeeds from whichever IP first fetched real bytes
+from that exact link, and re-visiting the download page for the *same* collection
+returns the *same* locked link rather than a fresh one. To download on a remote host
+(`Olympus`, `dev@213.14.157.19`) instead of the local workstation, we had to regroup the
+collection into a new-named copy (`DLB_SAApos_cohort_v2`) to get fresh, unlocked
+resource URLs, then let Olympus itself make the first real GET so the lock binds to its
+IP. Downloads run inside detached `tmux` sessions on Olympus (`adni_positive`,
+`adni_positive_small`) so they survive closing the local agent session; resume with
+`ssh Olympus` then `tmux attach -t adni_positive`. IDA's own downloader jar
+(`IdaDownloader_*.jar`) additionally requires an Oracle-branded JVM (checks
+`java.vendor` for "oracle") and fails on Debian's OpenJDK — worked around by invoking
+`edu.usc.loni.ida.download.resource.ResourceDownloader` directly via `java -cp` instead
+of going through its `launch.Launcher` entry point, though in the end plain `curl -C -`
+(resumable) was simpler and equally reliable, so that's what actually ran the transfer.
+
 ## What we deliberately did not get, and why
 
 - **Full-cohort images (all ~2,000+ ADNI subjects' MRI/PET).** Scope is the 126-subject
