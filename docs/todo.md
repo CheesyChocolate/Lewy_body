@@ -13,23 +13,10 @@ rationale and `CLAUDE.md` for project orientation.
   (`data/adni/dlb_cohort_candidates.csv`).
 - Built SAA-negative control cohort: 415 subjects, same logic
   (`data/adni/saa_negative_controls.csv`).
-- Downloaded raw DICOM images for both cohorts (T1 MRI + FDG-PET, ~35 GB) to remote server
-  `Olympus` — see "In progress" below for getting them onto this workstation.
-
-## In progress
-
-- **Pull downloaded images from Olympus to this workstation.** Four zip files sit in
-  `~/adni_download/` on Olympus, not yet extracted locally: `DLB_SAApos_cohort_v2.zip`
-  (7.35 GB), `DLB_SAApos_cohort_v2_dataset.zip` (37.6 MB), `DLB_SAAneg_controls.zip`
-  (27.76 GB), `DLB_SAAneg_controls_dataset.zip` (77 MB, already pulled locally). Blocked on
-  slow local internet; resume with:
-  ```
-  cd data/adni/images
-  rsync -avP --partial -e ssh Olympus:~/adni_download/DLB_SAApos_cohort_v2/DLB_SAApos_cohort_v2.zip .
-  rsync -avP --partial -e ssh Olympus:~/adni_download/DLB_SAAneg_controls/DLB_SAAneg_controls.zip .
-  ```
-  `--partial` means these are resumable — safe to stop and restart. Once pulled, `unzip` each
-  into `data/adni/images/` and delete the zips.
+- Downloaded raw DICOM images for both cohorts (T1 MRI + FDG-PET) from `Olympus`, pulled to
+  this workstation, and extracted into `data/adni/images/ADNI/` (~76 GB decompressed:
+  471,034 `.dcm` files + raw-format PET sidecars `.i`/`.hdr`/`.v` + per-image XML metadata).
+  Zip files removed after extraction.
 
 ## Next
 
