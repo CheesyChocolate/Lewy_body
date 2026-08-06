@@ -31,9 +31,9 @@ rationale and `CLAUDE.md` for project orientation.
   MRI), tumor/region segmentation or atlas-based ROI extraction, radiomic feature extraction
   (e.g. PyRadiomics), classifier (SAA+ vs SAA− as the primary label). Decide tooling
   (PyRadiomics, nipype, ANTs/FSL, etc.) and directory layout before writing code.
-- **Decide role of OASIS data.** `data/oasis/` (oasis-1, oasis-2, oasis-scripts) is staged but
-  unused — unclear whether it's meant as an sMRI-only external validation set, a normal-aging
-  reference for atlas building, or something else. Needs a decision before it's wired in.
+- **OASIS data likely unused.** `data/oasis/` (oasis-1, oasis-2, oasis-scripts) is staged but
+  probably won't be wired into the pipeline — ADNI alone covers the current plan. Left in
+  place rather than deleted in case an sMRI-only external validation need comes up later.
 - **Rewrite the differential/statistical framing for the new modality.** The old project's
   `docs/knowledge.md` (now archived) had running notes on biological background and stats
   choices for CSF proteomics — a fresh `docs/knowledge.md` should start once non-obvious
