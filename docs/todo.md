@@ -29,8 +29,13 @@ rationale and `CLAUDE.md` for project orientation.
 - **Design the radiomics pipeline.** No `src/` code exists yet for this project. Needs: DICOM →
   NIfTI conversion, PET/MRI co-registration (a la spatial normalization to an atlas or to the
   MRI), tumor/region segmentation or atlas-based ROI extraction, radiomic feature extraction
-  (e.g. PyRadiomics), classifier (SAA+ vs SAA− as the primary label). Decide tooling
-  (PyRadiomics, nipype, ANTs/FSL, etc.) and directory layout before writing code.
+  (e.g. PyRadiomics), classifier (SAA+ vs SAA− as the primary label). Tooling decided:
+  `dcm2niix` + `SimpleITK` + `antspyx` + `pyradiomics`, which forced pinning the project to
+  Python 3.9 exactly (pyradiomics has no working build/wheel past cp39; see git log and,
+  while the design task is in progress, `docs/DECISIONS.md`). Stage design (coregistration
+  scheme, ROI/atlas source, directory layout) still in progress — a small fraction of raw
+  images (37 series) are in an Interfile format neither `dcm2niix` nor `SimpleITK` can read,
+  not yet resolved.
 - **OASIS data likely unused.** `data/oasis/` (oasis-1, oasis-2, oasis-scripts) is staged but
   probably won't be wired into the pipeline — ADNI alone covers the current plan. Left in
   place rather than deleted in case an sMRI-only external validation need comes up later.
