@@ -131,6 +131,35 @@ Downloaded straight to Olympus (learned from the positive-cohort run: let Olympu
 the first real GET immediately, no need for a `_v2` regroup this time since the
 collection was newly created and never touched from the local workstation).
 
+### 6. Raw image format mix: DICOM, ECAT7, and Interfile
+
+The downloaded FDG-PET raw images aren't uniformly DICOM. Counted directly in
+`data/adni/images/ADNI/`: 1,944 DICOM series (`.dcm`), 179 ECAT7 series (`.v` files,
+magic bytes `MATRIX72`), and 37 Interfile series (`.hdr` text header + `.i` raw binary,
+`!INTERFILE` magic). All three are early-phase ADNI-1 FDG-PET reconstructions (site
+`HRRT` scanner, e.g. `128_S_2002`) that predate ADNI's later standardization on DICOM for
+PET exports; they're dynamic acquisitions (6 frames × 300s each, confirmed from an
+Interfile header's `frame definition := 300*6`), not static images.
+
+- **DICOM** — the large majority, converts fine with `dcm2niix`.
+- **ECAT7 (`.v`)** — `dcm2niix` converts these too, with a
+  `Warning: ECAT support VERY experimental (Spatial transforms unknown)`.
+- **Interfile (`.hdr`/`.i`)** — neither `dcm2niix` nor `SimpleITK` can read this format at
+  all. Checked whether these 37 series (25 subjects, all already in the cohort) could
+  just be dropped in favor of a DICOM/ECAT visit for the same subject: **no** — none of
+  the 25 subjects have any non-Interfile FDG-PET visit, so dropping them would cost real
+  cohort size and bias it toward later ADNI phases. Tried `medcon`/`xmedcon` (a
+  general-purpose Interfile-capable converter) as a shortcut: it parses the header
+  correctly but **silently corrupts the pixel values** for this Siemens/HRRT variant
+  (warns `Unsupported Siemens PET data type` but still writes float32 garbage up to
+  ~1e38, instead of failing) — confirmed by comparing against the raw bytes read directly
+  as little-endian float32, which are clean (`[0, ~0.5]`). Do not use medcon for these
+  files. Wrote a direct reader instead: `src/dlb_radiomics/interfile.py` +
+  `scripts/convert_interfile_series.py`, run successfully against all 37 series
+  (2026-08-07). Frames are combined into a static volume by raw-count sum by default
+  (not decay-corrected — an open question, applies to the ECAT `.v` series too, see
+  `docs/todo.md`).
+
 ## What we deliberately did not get, and why
 
 - **Full-cohort images (all ~2,000+ ADNI subjects' MRI/PET).** Scope is the 126-subject
