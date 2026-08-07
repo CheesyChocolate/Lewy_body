@@ -33,9 +33,13 @@ rationale and `CLAUDE.md` for project orientation.
   `dcm2niix` + `SimpleITK` + `antspyx` + `pyradiomics`, which forced pinning the project to
   Python 3.9 exactly (pyradiomics has no working build/wheel past cp39; see git log and,
   while the design task is in progress, `docs/DECISIONS.md`). Stage design (coregistration
-  scheme, ROI/atlas source, directory layout) still in progress — a small fraction of raw
-  images (37 series) are in an Interfile format neither `dcm2niix` nor `SimpleITK` can read,
-  not yet resolved.
+  scheme, ROI/atlas source, directory layout) still in progress. A small fraction of raw
+  images (37 series, 25 subjects) are in an Interfile format neither `dcm2niix` nor
+  `SimpleITK` can read; confirmed none of those 25 subjects have any DICOM/ECAT fallback
+  visit, so a small custom Interfile parser will need to be written (not skipped) to keep
+  them — see `docs/DECISIONS.md`. Also confirmed FDG-PET acquisitions (at least the
+  Interfile/ECAT ones) are 6-frame dynamic scans needing frame-averaging before static
+  radiomic features make sense.
 - **OASIS data likely unused.** `data/oasis/` (oasis-1, oasis-2, oasis-scripts) is staged but
   probably won't be wired into the pipeline — ADNI alone covers the current plan. Left in
   place rather than deleted in case an sMRI-only external validation need comes up later.
