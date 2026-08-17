@@ -16,7 +16,9 @@ import click
 
 from dlb_radiomics.interfile import load_interfile_series
 
-IMAGES_DIR = Path(__file__).resolve().parent.parent / "data" / "adni" / "images" / "ADNI"
+IMAGES_DIR = (
+    Path(__file__).resolve().parent.parent / "data" / "adni" / "images" / "ADNI"
+)
 
 
 def find_interfile_series_dirs(images_dir: Path) -> list[Path]:
@@ -31,19 +33,30 @@ def find_interfile_series_dirs(images_dir: Path) -> list[Path]:
     default="sum",
     help="How to combine dynamic frames into a static volume.",
 )
-@click.option("--overwrite", is_flag=True, help="Re-convert series whose output already exists.")
-def main(combine: str, overwrite: bool) -> None:
+@click.option(
+    "--overwrite", is_flag=True, help="Re-convert series whose output already exists."
+)
+@click.option(
+    "--no-decay-correct",
+    is_flag=True,
+    help="Skip per-frame decay correction (reproduces the old, uncorrected behavior).",
+)
+def main(combine: str, overwrite: bool, no_decay_correct: bool) -> None:
+    decay_correct = not no_decay_correct
     series_dirs = find_interfile_series_dirs(IMAGES_DIR)
     click.echo(f"Found {len(series_dirs)} Interfile series under {IMAGES_DIR}")
 
     ok, failed = 0, []
     for series_dir in series_dirs:
-        out_path = series_dir / f"{series_dir.name}_{combine}.nii.gz"
+        suffix = combine if decay_correct else f"{combine}_nodecay"
+        out_path = series_dir / f"{series_dir.name}_{suffix}.nii.gz"
         if out_path.exists() and not overwrite:
             ok += 1
             continue
         try:
-            img = load_interfile_series(series_dir, combine=combine)
+            img = load_interfile_series(
+                series_dir, combine=combine, decay_correct=decay_correct
+            )
             img.to_filename(out_path)
             ok += 1
         except Exception as exc:  # noqa: BLE001

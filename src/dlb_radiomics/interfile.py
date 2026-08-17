@@ -61,20 +61,34 @@ def _find_data_file(hdr_path: Path, header: dict[str, str]) -> Path:
     )
 
 
-def load_interfile_frame(hdr_path: Path) -> nib.Nifti1Image:
-    """Load a single Interfile frame (one `.hdr` + `.i` pair) as a NIfTI image."""
+def load_interfile_frame(
+    hdr_path: Path, *, decay_correct: bool = True
+) -> nib.Nifti1Image:
+    """Load a single Interfile frame (one `.hdr` + `.i` pair) as a NIfTI image.
+
+    `decay_correct`: if True (default), scale the raw counts by the frame's own
+    `decay correction factor` header field before returning. ADNI's raw HRRT exports
+    leave `applied decay correction factor` blank -- the scanner computes the
+    per-frame correction factor but does not apply it to the stored counts, so this
+    must be done downstream. Skipping this (decay_correct=False) reproduces the raw,
+    undecayed counts as originally exported.
+    """
     hdr_path = Path(hdr_path)
     header = parse_interfile_header(hdr_path)
 
     if header.get("number format", "").lower() != "float":
-        raise NotImplementedError(f"Unsupported number format: {header.get('number format')!r}")
+        raise NotImplementedError(
+            f"Unsupported number format: {header.get('number format')!r}"
+        )
     if header.get("number of bytes per pixel") != "4":
         raise NotImplementedError(
             f"Unsupported bytes per pixel: {header.get('number of bytes per pixel')!r}"
         )
 
     shape = tuple(int(header[f"matrix size [{i}]"]) for i in (1, 2, 3))
-    spacing = tuple(float(header[f"scaling factor (mm/pixel) [{i}]"]) for i in (1, 2, 3))
+    spacing = tuple(
+        float(header[f"scaling factor (mm/pixel) [{i}]"]) for i in (1, 2, 3)
+    )
 
     data_path = _find_data_file(hdr_path, header)
     raw = np.fromfile(data_path, dtype="<f4")
@@ -87,6 +101,14 @@ def load_interfile_frame(hdr_path: Path) -> nib.Nifti1Image:
     # (column-major / Fortran storage order).
     volume = raw.reshape(shape, order="F")
 
+    if decay_correct:
+        factor_str = header.get("decay correction factor", "").strip()
+        if not factor_str:
+            raise ValueError(
+                f"{hdr_path}: decay_correct=True but no 'decay correction factor' in header"
+            )
+        volume = volume * float(factor_str)
+
     dx, dy, dz = spacing
     affine = np.diag([-dx, dy, dz, 1.0])
     affine[:3, 3] = [dx * shape[0] / 2, -dy * shape[1] / 2, -dz * shape[2] / 2]
@@ -94,23 +116,25 @@ def load_interfile_frame(hdr_path: Path) -> nib.Nifti1Image:
     return nib.Nifti1Image(volume.astype(np.float32), affine)
 
 
-def load_interfile_series(series_dir: Path, *, combine: str = "sum") -> nib.Nifti1Image:
+def load_interfile_series(
+    series_dir: Path, *, combine: str = "sum", decay_correct: bool = True
+) -> nib.Nifti1Image:
     """Load a dynamic Interfile PET series (one `.hdr`/`.i` pair per frame) as a single
     static NIfTI image.
 
-    `combine`: "sum" (raw-count sum across frames, default) or "mean". Neither applies
-    per-frame decay correction -- ADNI's raw exports leave `applied decay correction
-    factor` blank in the header, so frames are stored as raw, undecayed counts. Whether
-    static radiomic features should instead use decay-corrected frame combination is
-    still an open pipeline-design question (see docs/TODO.md); this gives a reasonable,
-    clearly-labeled default rather than a physics-verified one.
+    `combine`: "sum" (default) or "mean" across frames.
+    `decay_correct`: if True (default), each frame is scaled by its own `decay
+    correction factor` header value before combining -- required for a physically
+    correct static image, since a plain sum of raw, undecayed counts under-weights
+    later frames relative to earlier ones (see docs/preliminary_research/ and
+    docs/DECISIONS.md). Pass False to reproduce the old, uncorrected behavior.
     """
     series_dir = Path(series_dir)
     hdr_paths = sorted(series_dir.glob("*.hdr"))
     if not hdr_paths:
         raise FileNotFoundError(f"No .hdr files in {series_dir}")
 
-    frames = [load_interfile_frame(p) for p in hdr_paths]
+    frames = [load_interfile_frame(p, decay_correct=decay_correct) for p in hdr_paths]
 
     shapes = {f.shape for f in frames}
     if len(shapes) != 1:
