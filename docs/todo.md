@@ -17,23 +17,20 @@ rationale and `CLAUDE.md` for project orientation.
   this workstation, and extracted into `data/adni/images/ADNI/` (~76 GB decompressed:
   471,034 `.dcm` files + raw-format PET sidecars `.i`/`.hdr`/`.v` + per-image XML metadata).
   Zip files removed after extraction.
+- Closed the missing-MRI gap and moved canonical data storage to `Olympus`. Discovered
+  376/541 cohort rows (69%) had zero raw MRI on disk because the original search's
+  `*SPGR*` wildcard only matched GE-scanner T1 naming, missing Siemens `MPRAGE` sites
+  (`docs/data_acquisition.md` section 7). Corrected search downloaded and, since the
+  workstation lacks disk space for the full ~190GB image dataset, extracted directly on
+  Olympus into `~/Projects/Lewy_body/data/adni/images/ADNI/` along with the SAA-negative
+  and SAA-positive-v2 cohort image sets (1,094,206 files total), plus the tabular data
+  and 37 Interfile-converted `.nii.gz` PET outputs synced over from the workstation. Full
+  detail in `docs/data_acquisition.md` section 8. Olympus (`~/Projects/Lewy_body`,
+  remote `git@github-lewy-body:CheesyChocolate/Lewy_body.git`) is now the canonical data
+  and pipeline-execution location; this workstation is for code development.
 
 ## Next
 
-- **Integrate re-downloaded MRI and close the missing-MRI gap.** While starting the
-  "one scan per subject" reduction below, discovered 376/541 cohort rows (69%) had zero
-  raw MRI on disk despite `has_mri` being true — the original MRI search's `*SPGR*`
-  wildcard only matches GE-scanner T1 naming, silently missing Siemens `MPRAGE`/`MP-RAGE`
-  sites. Full root-cause and fix in `docs/data_acquisition.md` section 7. A corrected
-  search (`*MP*RAGE*` + T1 + MRI, 3,603 series, 370 subjects) has been downloaded to
-  Olympus (`~/adni_download/DLB_missing_MRI_v1_v2/`, `zip1.zip` 39.1GB + `zip2.zip`
-  519MB, both complete and verified as of 2026-08-07). Integration decision made:
-  stage first in `data/adni/images/ADNI_missing_mri_v1_v2_staging/` (dir already
-  created), not merged directly. Pull command (needs `sshuttle` tunnel up first):
-  `rsync -avP Olympus:~/adni_download/DLB_missing_MRI_v1_v2/ data/adni/images/ADNI_missing_mri_v1_v2_staging/`.
-  **User is running this transfer themselves outside the session** — not yet done as of
-  2026-08-07. Next session: confirm the staging dir is populated, unzip, decide
-  merge-into-`ADNI/`-vs-keep-staged, then re-run the missing-MRI check to confirm closure.
 - **Extract to one scan per subject.** Both image sets currently include every visit where a
   qualifying MRI/FDG-PET scan exists, not just the one closest to each subject's SAA draw
   date. Before feature extraction, filter down using the per-subject target dates already in

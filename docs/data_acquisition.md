@@ -218,12 +218,12 @@ dev@213.14.157.19:2222 0.0.0.0/0` running so the `Olympus` SSH alias resolves):
 rsync -avP Olympus:~/adni_download/DLB_missing_MRI_v1_v2/ data/adni/images/ADNI_missing_mri_v1_v2_staging/
 ```
 
-**Not yet run** — the user asked to run the transfer themselves rather than have it run in
-this session. Local disk had 112G free against a ~40G zip pull + ~40G extracted (DICOM
-barely compresses), tight but workable if the zips are deleted after extraction. After the
-pull and extraction: verify contents, decide the merge into `data/adni/images/ADNI/` (or
-keep as a permanent separate tree), then re-run the missing-MRI check to confirm the gap
-is closed.
+**Resolved (2026-08-17).** Extracted directly on Olympus (no need to re-pull the zips to
+the workstation — they were already sitting in `~/adni_download/` from the original
+download) straight into `data/adni/images/ADNI/`, merging automatically since the zip's
+top-level path prefix matches the existing tree. 624,113 files added, zips deleted after
+extraction to reclaim disk. This happened as part of the broader data-location move to
+Olympus — see section 8 below.
 
 **Refined understanding of the IP-lock mechanism** (extends section 4's note): locking
 appears to bind to whichever IP "initiates" the download by generating/clicking the
@@ -239,6 +239,39 @@ dev@213.14.157.19:2222 0.0.0.0/0`, verify both the workstation and Olympus repor
 same IP via `curl -s https://ifconfig.me`, then click/regenerate the specific
 zip/URL-list link in-browser while sshuttle is active, and only then let Olympus's own
 `curl` fetch it.
+
+### 8. Data relocated to Olympus as canonical store (2026-08-17)
+
+The local workstation only has ~69GB free, not enough for the full ~190GB uncompressed
+image dataset (missing-MRI fix + SAA-negative controls + SAA-positive cohort v2). Decided
+to develop pipeline code on the workstation but run the pipeline and store all data on
+`Olympus`, which already has a git clone of this repo at `~/Projects/Lewy_body` (pushed
+via a dedicated deploy key, `github-lewy-body` SSH alias).
+
+All three raw zip sets already sitting in `~/adni_download/` on Olympus (from the original
+download runs, never re-transferred) were extracted directly into
+`~/Projects/Lewy_body/data/adni/images/ADNI/` on Olympus, in a detached tmux session
+(`data_extract`) so the multi-hour job survived session restarts:
+
+- `DLB_missing_MRI_v1_v2` (zip1 + zip2): 624,113 files
+- `DLB_SAAneg_controls`: 356,960 files
+- `DLB_SAApos_cohort_v2`: 113,133 files
+
+Total: 1,094,206 files, extracted sequentially (deleting each zip immediately after its
+own extraction to keep disk headroom, since all three together exceed Olympus's free
+space at once). Additionally rsynced from the workstation, since these aren't derivable
+from the raw zips: `ADNIMERGE2/`, `tables/`, `biospecimen/`, the cohort/tracking CSVs
+(`dlb_cohort_candidates.csv`, `saa_negative_controls.csv`, `DATADIC_03Aug2026.csv`,
+`missing_mri_ptids.txt`, `DLB_missing_MRI_v1*.csv`), and the 37 Interfile-converted
+`.nii.gz` PET series outputs (`scripts/convert_interfile_series.py` writes these inline
+into the raw image tree, so they aren't part of any zip). Final count on Olympus:
+1,094,243 files under `data/adni/images/ADNI/`.
+
+`data/adni/` remains gitignored on Olympus too — only the data location changed, not the
+tracking scheme. The workstation's own copies of `data/adni/images/ADNI/` (74GB) and
+`data/adni/images/ADNI_missing_mri_v1_v2_staging/` (40GB, the local rsync'd copy of the
+same zips already deleted on Olympus) are now redundant but were deliberately left in
+place pending explicit confirmation before deletion.
 
 ## Why we don't have a DLB diagnosis label
 
