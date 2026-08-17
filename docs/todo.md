@@ -32,6 +32,11 @@ rationale and `CLAUDE.md` for project orientation.
   compiles via `latexmk conference_paper.tex`) to check the pipeline design against current
   literature. Resolved two of the pipeline's open design questions and surfaced two
   previously-undocumented fixes — see the "Next" items below for what changed as a result.
+- Fixed Interfile PET frame combination to apply per-frame decay correction (was a plain
+  raw-count sum). `load_interfile_frame`/`load_interfile_series` in
+  `src/dlb_radiomics/interfile.py` now scale each frame by its header's `decay correction
+  factor` before combining. Regenerated all 37 series' `.nii.gz` outputs and synced the
+  corrected versions to Olympus.
 
 ## Next
 
@@ -46,14 +51,13 @@ rationale and `CLAUDE.md` for project orientation.
   sufficient granularity to capture the DLB "cingulate island sign" (McKeith et al. 2017,
   Lim et al. 2009). This resolves the "coregistration scheme" and "ROI/segmentation source"
   open questions from the pipeline-design task below.
-- **Fix PET dynamic-frame combination: needs decay correction, not a plain sum.** Literature
-  review found this is nonstandard — ADNI's own PET Core protocol decay-corrects each frame
-  to a common reference time before combining into a static image; the current
-  `src/dlb_radiomics/interfile.py` / `scripts/convert_interfile_series.py` plain raw-count
-  sum under-weights later, more-decayed frames. Affects the 37 Interfile series and the 179
-  ECAT7 series (216 of 2,160 total series). Needs per-frame decay correction using each
-  frame's start time and the F-18 half-life (109.77 min) before summing; the 37
-  already-converted `.nii.gz` outputs on Olympus will need regenerating once this is fixed.
+- **ECAT7 frame combination still needs the same decay-correction fix.** The Interfile side
+  is done (see Done section): `load_interfile_frame`/`load_interfile_series` in
+  `src/dlb_radiomics/interfile.py` now scale each frame by its header's own `decay
+  correction factor` before combining (the HRRT scanner computes this factor but leaves it
+  unapplied in the raw export). The 179 ECAT7 series (`.v` files) still use a plain sum and
+  need the equivalent fix — ECAT's own multi-frame header format encodes a per-frame decay
+  factor too, needs the same treatment once `dcm2niix`'s ECAT path is revisited.
 - **Classifier stage must use nested cross-validation.** Literature review
   (Demircioğlu 2021/2024) found that feature selection or class-balancing (oversampling the
   SAA-positive minority, 126 vs 415) performed on the full dataset before splitting into CV
