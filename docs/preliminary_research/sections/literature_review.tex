@@ -1,0 +1,64 @@
+\section{Literature Review and Academic Summaries}
+\label{sec:literature_review}
+
+The following section provides academic summaries of the publications most directly relevant to this project's remaining pipeline-design decisions, grouped by the design question each informs.
+
+\subsection{Cohort design precedent: SAA-confirmed synucleinopathy in ADNI}
+\textbf{Citation:} E. Mak et al., ``Influence of alpha-synuclein on glucose metabolism in Alzheimer's disease continuum: Analyses of $\alpha$-synuclein seed amplification assay and FDG-PET'' \cite{mak2025alphasynuclein}.
+
+\begin{itemize}
+    \item \textbf{Research Problem:} Whether biologically confirmed alpha-synuclein co-pathology, detected via CSF SAA, is associated with a distinct glucose-metabolism signature within the ADNI AD continuum, independent of amyloid/tau status.
+    \item \textbf{Methodology:} Identified ADNI subjects with an Amprion CSF SAA result, a CSF immunoassay, and an FDG-PET scan all obtained within a defined window of one another, then related SAA positivity to regional FDG-PET uptake using ADNI's standard processed PET output.
+    \item \textbf{Findings:} SAA positivity was associated with additional hypometabolism concentrated in posterior and occipital cortical regions, consistent with the classic DLB-associated metabolic pattern, even within a cohort not selected for a clinical DLB diagnosis.
+    \item \textbf{Strengths:} Uses the exact biomarker (Amprion SAA) and modality-timing logic (FDG-PET within a bounded window of the SAA draw) this project's cohort was built around, and independently confirms the resulting cohort's expected metabolic signal is real and regionally consistent with DLB.
+    \item \textbf{Limitations:} A univariate/mediation-style regional analysis, not a radiomics or texture-based classifier; does not use PyRadiomics or sub-regional texture features.
+    \item \textbf{Contribution to Planned Work:} Validates the project's cohort-construction logic and its choice of posterior/occipital cortex as a metabolically informative region, and establishes that this project's planned radiomics classifier is a methodological extension of, rather than a duplicate of, existing published work.
+\end{itemize}
+
+\subsection{ADNI's harmonized FDG-PET processing pipeline}
+\textbf{Citation:} W. J. Jagust et al., ``The ADNI PET Core at 20'' \cite{jagust2024petcore}, extending the original protocol described in ``The Alzheimer's Disease Neuroimaging Initiative positron emission tomography core'' \cite{jagust2010petcore}.
+
+\begin{itemize}
+    \item \textbf{Research Problem:} ADNI pools FDG-PET data acquired on GE, Siemens, and Philips scanners across dozens of sites with heterogeneous native spatial resolution; without correction this introduces a scanner-confounded batch effect into any downstream analysis, radiomics included.
+    \item \textbf{Methodology:} The ADNI PET Core's standard pipeline coregisters and averages each subject's dynamic PET frames, reorients the result to a standard grid, and applies a site- and scanner-specific 3D Gaussian smoothing kernel derived from Hoffman-phantom scans acquired at each site, so that every processed image is harmonized to a common target resolution (originally 8\,mm full width at half maximum, revised down to 6\,mm in 2023 to match improvements in the least-resolved scanners still in the study).
+    \item \textbf{Findings:} This harmonization step is a prerequisite the ADNI PET Core itself considers necessary before any cross-site quantitative comparison of FDG-PET data; the 2024 retrospective additionally documents that the pipeline's resolution target and QC criteria have been revised over the study's 20-year run, so downloaded processed outputs should be checked against the current documented version.
+    \item \textbf{Strengths:} Solves exactly the cross-scanner harmonization problem this project would otherwise need to solve itself (Section~\ref{sec:methodology}), and is already downloaded as the \texttt{UCBERKELEYFDG\_8mm} table in \texttt{data/adni/tables/}.
+    \item \textbf{Limitations:} Applies a fixed, ADNI-wide smoothing target rather than a task-specific optimization; some spatial texture detail below the harmonization resolution is necessarily discarded.
+    \item \textbf{Contribution to Planned Work:} Directly supports reusing ADNI's own processed FDG-PET output as the radiomics feature-extraction input, rather than recoregistering and renormalizing every raw image from scratch.
+\end{itemize}
+
+\subsection{PyRadiomics and the IBSI feature-extraction standard}
+\textbf{Citation:} J. J. M. van Griethuysen et al., ``Computational Radiomics System to Decode the Radiographic Phenotype'' \cite{vangriethuysen2017pyradiomics}; A. Zwanenburg et al., ``The Image Biomarker Standardization Initiative: Standardized Quantitative Radiomics for High-Throughput Image-based Phenotyping'' \cite{zwanenburg2020ibsi}.
+
+\begin{itemize}
+    \item \textbf{Research Problem:} Early radiomics literature suffered from poor reproducibility because different software implementations of nominally identical texture features (e.g. GLCM contrast) produced numerically different values, making cross-study comparison unreliable.
+    \item \textbf{Methodology:} PyRadiomics \cite{vangriethuysen2017pyradiomics} is an open-source, IBSI-aligned feature-extraction library implementing first-order statistics, shape features, and texture matrices (GLCM, GLRLM, GLSZM, NGTDM, GLDM) with optional wavelet and Laplacian-of-Gaussian image filtering. The IBSI consensus \cite{zwanenburg2020ibsi}, produced by a large multi-institution working group, defines standardized mathematical definitions, image preprocessing steps, and reporting requirements for these same feature classes.
+    \item \textbf{Findings:} PyRadiomics feature values for IBSI-defined features match the IBSI reference implementation, giving it a reproducibility guarantee that ad hoc or in-house texture-feature code lacks.
+    \item \textbf{Strengths:} Already selected as this project's feature-extraction tool (see \texttt{docs/DECISIONS.md}); IBSI compliance is a low-cost way to keep results comparable to the broader radiomics literature.
+    \item \textbf{Limitations:} Neither paper is specific to PET or to neurodegenerative disease; feature-class selection appropriate for a given imaging modality and disease is left to the user.
+    \item \textbf{Contribution to Planned Work:} Confirms the project's existing choice of PyRadiomics is well-founded and that following IBSI's default feature-class set (first-order plus all five texture-matrix families, with wavelet filtering as PyRadiomics' documented default) is a defensible, literature-grounded starting configuration rather than an unconstrained choice.
+\end{itemize}
+
+\subsection{Cross-validation leakage in small-cohort radiomics}
+\textbf{Citation:} A. Demircio\u{g}lu, ``Measuring the bias of incorrect application of feature selection when using cross-validation in radiomics'' \cite{demircioglu2021bias} and ``Applying oversampling before cross-validation will lead to high bias in radiomics'' \cite{demircioglu2024oversampling}.
+
+\begin{itemize}
+    \item \textbf{Research Problem:} Radiomics studies commonly perform feature selection, or class-balancing via oversampling, on the entire dataset before splitting into cross-validation folds. Both papers quantify how much this inflates reported classifier performance.
+    \item \textbf{Methodology:} Simulated and real radiomics datasets were evaluated under two protocols: feature selection/oversampling applied once on the full dataset before cross-validation (``incorrect''), versus applied independently inside each training fold (``correct'', i.e. nested cross-validation).
+    \item \textbf{Findings:} Performing feature selection outside the cross-validation loop inflated reported AUC-ROC by up to 0.15 and accuracy by up to 0.17 \cite{demircioglu2021bias}; oversampling applied before splitting produced a similarly severe, systematic optimistic bias \cite{demircioglu2024oversampling}. Both effects grow larger as the number of candidate features grows relative to the number of subjects, and as class imbalance increases -- both conditions that apply to a several-hundred-subject, imbalanced (126 SAA-positive vs.\ 415 SAA-negative) cohort with hundreds of PyRadiomics features per region.
+    \item \textbf{Strengths:} Directly quantifies a failure mode that is easy to introduce unintentionally in a scikit-learn pipeline (e.g., calling a feature selector or an oversampler before \texttt{train\_test\_split} or before a \texttt{cross\_val\_score} loop).
+    \item \textbf{Limitations:} Both studies use simulated or oncology radiomics datasets, not FDG-PET dementia data specifically; the magnitude of bias in this project's specific setting is not independently measured.
+    \item \textbf{Contribution to Planned Work:} Establishes a concrete, previously undocumented requirement for the classifier-design stage of this project's pipeline: feature selection and any class-balancing step must be nested inside the cross-validation loop, never fit on the full dataset beforehand.
+\end{itemize}
+
+\subsection{A methodological peer for multiclass FDG-PET classification}
+\textbf{Citation:} S. Kim et al., ``Deep learning for FDG-PET classification in patients with Alzheimer's disease, dementia with Lewy bodies and their mixed pathology: a solution for diagnostic heterogeneity'' \cite{kim2026dlfdgpet}.
+
+\begin{itemize}
+    \item \textbf{Research Problem:} Clinical FDG-PET classification among AD, DLB, and mixed AD/DLB pathology is difficult because the mixed-pathology group's metabolic pattern overlaps both pure phenotypes.
+    \item \textbf{Methodology:} Trained a deep-learning classifier on FDG-PET images across AD, DLB, mixed-pathology, and cognitively normal groups, comparing standardized uptake value ratio (SUVR) images against a alternative processed representation.
+    \item \textbf{Findings:} Reports that image representation choice materially affects classification performance across the diagnostic groups, and that the mixed-pathology group remains the hardest to separate.
+    \item \textbf{Strengths:} The closest published methodological peer to this project's eventual classifier stage in modality (FDG-PET), disease groups (DLB-relevant), and general goal (regional metabolic pattern classification).
+    \item \textbf{Limitations:} Uses a deep-learning image classifier rather than a hand-crafted PyRadiomics feature pipeline, and uses ADNI's/a separate cohort's clinical diagnosis labels rather than a biologically confirmed SAA label; direct comparison of reported performance numbers to this project's planned classifier would not be apples-to-apples.
+    \item \textbf{Contribution to Planned Work:} Confirms that FDG-PET-based multiclass dementia discrimination is an active, recent (2026) research area, and that the specific difficulty of separating mixed/overlapping pathology groups -- directly analogous to this project's SAA-positive-but-non-DLB-diagnosed subjects -- is a recognized, non-trivial problem rather than an artifact of this project's particular cohort.
+\end{itemize}

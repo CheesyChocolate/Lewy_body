@@ -1,0 +1,29 @@
+\section{Methodology: Open Design Questions Reframed}
+\label{sec:methodology}
+
+This section states each of the five pipeline-design questions carried over from the project's working task list (\texttt{docs/TODO.md}) as a methodology decision, together with the literature-informed answer this review supports.
+
+\subsection{Coregistration and spatial normalization}
+\textbf{Question:} Perform PET-to-T1 rigid coregistration followed by T1-to-template normalization from raw images using \texttt{antspyx}, or reuse ADNI's own processed FDG-PET output?
+
+\textbf{Answer:} Reuse ADNI's \texttt{UCBERKELEYFDG\_8mm} output as the base image. ADNI's own PET Core pipeline already performs frame coregistration and averaging, standard-grid reorientation, and -- critically -- scanner-specific smoothing harmonization calibrated against Hoffman-phantom scans at every acquisition site \cite{jagust2024petcore,jagust2010petcore}. Rebuilding this from raw images would mean re-solving a cross-scanner (GE/Siemens/Philips) harmonization problem ADNI has already solved and validated at study scale. This project's remaining coregistration work is limited to extracting ROI-space values from the already-harmonized processed image, not full raw-to-template registration.
+
+\subsection{Region-of-interest / segmentation source}
+\textbf{Question:} Use an external atlas (AAL, Hammers, Desikan--Killiany), reuse ADNI's existing FreeSurfer parcellations (\texttt{UCSFFSX51}/\texttt{UCSFFSX*}), or perform a fresh segmentation?
+
+\textbf{Answer:} Reuse the FreeSurfer parcellations already downloaded in \texttt{UCSFFSX51}. No literature found in this review indicates FreeSurfer/Desikan--Killiany parcellation is inferior to an alternative atlas for this purpose; Mak et al.\ \cite{mak2025alphasynuclein} used the Mayo Clinic Adult Lifespan Template with a dedicated substantia nigra segmentation, which is a viable alternative but not evidence against the FreeSurfer route, given this project already has FreeSurfer output on disk and avoids an additional segmentation step. The one concrete requirement this review adds is a check, before committing to this choice, that the FreeSurfer parcellation separates posterior cingulate, occipital, and parietal cortex at sufficient granularity to capture the cingulate island sign \cite{mckeith2017dlb,lim2009cingulateisland}, since that is the DLB-specific metabolic signature this project is built to characterize.
+
+\subsection{PyRadiomics feature-class configuration}
+\textbf{Question:} Which PyRadiomics feature classes should be extracted, and should wavelet-filtered images be included?
+
+\textbf{Answer:} No FDG-PET- or DLB-specific study was found in this review recommending a feature-class subset narrower than PyRadiomics' own default set (first-order statistics plus GLCM, GLRLM, GLSZM, NGTDM, and GLDM texture matrices), with wavelet-filtered images included, following the IBSI-standardized definitions of each feature \cite{vangriethuysen2017pyradiomics,zwanenburg2020ibsi}. This remains a low-risk default rather than a literature-driven decision; feature reduction should instead happen at the classifier stage, subject to the nested-cross-validation requirement below, rather than by restricting the extraction stage up front.
+
+\subsection{PET dynamic-frame combination}
+\textbf{Question:} Is the current plain raw-count sum across each series' six dynamic frames adequate, or does it need decay correction?
+
+\textbf{Answer:} It needs decay correction. Standard PET processing, including ADNI's own protocol \cite{jagust2010petcore}, decay-corrects each frame to a common reference time before combining frames into a static image; every clinical or radiomics-oriented PET workflow found in this review assumes decay-corrected input. A plain sum of raw frame counts systematically under-weights later, more-decayed frames, which would bias the 37 Interfile-derived and 179 ECAT7-derived series relative to the DICOM-derived majority of the cohort. This is treated as a required implementation fix in Section~\ref{sec:proposed_work}, not an open question.
+
+\subsection{Classifier design and validation protocol}
+\textbf{Question:} Given a cohort of roughly 541 subjects (126 SAA-positive, 415 SAA-negative) and several hundred PyRadiomics features per region, how should the classifier stage avoid inflated, non-generalizable performance estimates?
+
+\textbf{Answer:} Feature selection and any class-imbalance correction (e.g.\ oversampling the SAA-positive minority class) must be performed independently inside each training fold of a nested cross-validation scheme, never fit once on the full dataset before splitting. Demircio\u{g}lu \cite{demircioglu2021bias,demircioglu2024oversampling} quantifies the resulting optimistic bias from getting this wrong at up to 0.15 AUC-ROC and 0.17 accuracy, an effect that grows with higher feature-to-subject ratios and greater class imbalance -- both of which apply here. Performance should be reported as a distribution across outer-fold estimates (with confidence intervals), not a single point estimate, given that a cohort in the low hundreds gives inherently unstable single-split performance estimates.

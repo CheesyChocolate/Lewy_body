@@ -1,0 +1,13 @@
+\section{Current Pipeline Status}
+\label{sec:results}
+
+No radiomics pipeline code (\texttt{src/}) has been written yet; this project remains at the preliminary-research and data-acquisition stage, so this section reports implementation status against the design in Section~\ref{sec:methodology} rather than experimental results.
+
+\subsection{Cohort and data acquisition}
+The SAA-positive (126 subjects) and SAA-negative (415 subjects) cohorts have been constructed from ADNI's tabular release, and raw FDG-PET and structural MRI images for both cohorts, plus ADNI's full tabular data package (including the \texttt{UCBERKELEYFDG\_8mm} and \texttt{UCSFFSX51} tables this review recommends reusing), have been downloaded. A gap in the original MRI download -- a scanner-naming search wildcard that silently excluded Siemens-site T1 acquisitions, affecting 376 of 541 cohort subjects -- was identified and corrected, and the corrected data has been integrated. All image and tabular data now reside on a dedicated processing server (Olympus) rather than the local development workstation, since the combined uncompressed dataset (approximately 190\,GB) exceeds local disk capacity.
+
+\subsection{Image format handling}
+Of 2{,}160 raw PET/MRI series in the cohort, 1{,}944 are standard DICOM (convert cleanly with \texttt{dcm2niix}), 179 are ECAT7 (\texttt{dcm2niix} converts these with an experimental-support warning on spatial transforms), and 37 are Interfile format, which neither \texttt{dcm2niix} nor SimpleITK can read. A direct Interfile reader was written and validated against all 37 series after a candidate off-the-shelf converter (\texttt{medcon}) was found to silently corrupt pixel values for this scanner variant. As established in Section~\ref{sec:proposed_work}, this reader's current plain-sum frame combination requires a decay-correction fix before its output is suitable for radiomic feature extraction; this fix has not yet been implemented.
+
+\subsection{Not yet implemented}
+The coregistration/normalization approach (reuse of \texttt{UCBERKELEYFDG\_8mm}), ROI extraction from \texttt{UCSFFSX51}, PyRadiomics feature extraction, the decay-correction fix to the Interfile/ECAT frame-combination step, the one-scan-per-subject visit-selection filter, and the classifier training/validation code are all pending implementation. This review's contribution is to fix the design of each of these stages against current literature before that implementation begins, rather than to report on completed experiments.
