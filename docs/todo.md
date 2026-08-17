@@ -20,12 +20,28 @@ rationale and `CLAUDE.md` for project orientation.
 
 ## Next
 
+- **Integrate re-downloaded MRI and close the missing-MRI gap.** While starting the
+  "one scan per subject" reduction below, discovered 376/541 cohort rows (69%) had zero
+  raw MRI on disk despite `has_mri` being true — the original MRI search's `*SPGR*`
+  wildcard only matches GE-scanner T1 naming, silently missing Siemens `MPRAGE`/`MP-RAGE`
+  sites. Full root-cause and fix in `docs/data_acquisition.md` section 7. A corrected
+  search (`*MP*RAGE*` + T1 + MRI, 3,603 series, 370 subjects) has been downloaded to
+  Olympus (`~/adni_download/DLB_missing_MRI_v1_v2/`, `zip1.zip` 39.1GB + `zip2.zip`
+  519MB, both complete and verified as of 2026-08-07). Integration decision made:
+  stage first in `data/adni/images/ADNI_missing_mri_v1_v2_staging/` (dir already
+  created), not merged directly. Pull command (needs `sshuttle` tunnel up first):
+  `rsync -avP Olympus:~/adni_download/DLB_missing_MRI_v1_v2/ data/adni/images/ADNI_missing_mri_v1_v2_staging/`.
+  **User is running this transfer themselves outside the session** — not yet done as of
+  2026-08-07. Next session: confirm the staging dir is populated, unzip, decide
+  merge-into-`ADNI/`-vs-keep-staged, then re-run the missing-MRI check to confirm closure.
 - **Extract to one scan per subject.** Both image sets currently include every visit where a
   qualifying MRI/FDG-PET scan exists, not just the one closest to each subject's SAA draw
   date. Before feature extraction, filter down using the per-subject target dates already in
   `dlb_cohort_candidates.csv` / `saa_negative_controls.csv` (columns `FDG_PET_EXAMDATE`,
   `MRI_EXAMDATE`) — keep the other-visit scans on disk in case a longitudinal check is wanted
-  later, just don't feed them all into the initial model.
+  later, just don't feed them all into the initial model. PET side is largely clean (541/541
+  exact-date matches, only 6 subjects need a same-date multi-series tie-break); MRI side is
+  blocked on the gap above.
 - **Design the radiomics pipeline.** No `src/` code exists yet for this project. Needs: DICOM →
   NIfTI conversion, PET/MRI co-registration (a la spatial normalization to an atlas or to the
   MRI), tumor/region segmentation or atlas-based ROI extraction, radiomic feature extraction

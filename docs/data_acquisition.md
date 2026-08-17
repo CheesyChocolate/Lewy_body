@@ -187,6 +187,59 @@ Interfile header's `frame definition := 300*6`), not static images.
   data request has been made yet — that's a separate access process (E-DLB is a
   consortium, not a public download) and hasn't been started.
 
+### 7. Missing-MRI gap discovery and remediation (2026-08-07)
+
+While working on "reduce images to one visit per subject" (`docs/todo.md`), found that
+**376 of 541 cohort rows (376/534 unique RIDs, ~69%) had no raw MRI on disk at all**,
+only FDG-PET — despite `has_mri` being true in `dlb_cohort_candidates.csv` /
+`saa_negative_controls.csv`. Root cause: `has_mri` is derived from ADNI's precomputed
+`UCSFFSX51` FreeSurfer table (a scan was processed), not from raw-image download
+verification, and the original MRI search (section 4 above) used `Image Description`
+wildcard `*SPGR*`, which only matches **GE-scanner** T1 naming (`Sag IR-SPGR`,
+`Accelerated Sag IR-FSPGR`). Siemens-site subjects' T1 sequences are named
+`MPRAGE`/`MP-RAGE`/`MP RAGE` instead and were silently excluded — confirmed via
+`data/adni/tables/MRIPROT.csv` `SERIESDESC` values for a sample of the missing RIDs.
+
+**Fix:** new IDA Advanced Search, `Image Description` wildcard `*MP*RAGE*` (catches
+`MPRAGE`/`MP-RAGE`/`MP RAGE` and REPEAT/GRAPPA2/SENSE2 variants) + `Weighting = T1` +
+`Modality = MRI`, restricted to the 370 missing PTIDs → 3,603 candidate series.
+Collection `DLB_missing_MRI_v1_v2` (regrouped once from `DLB_missing_MRI_v1` to get an
+unlocked download link for Olympus, same pattern as section 4). Downloaded to Olympus
+(`~/adni_download/DLB_missing_MRI_v1_v2/`): `zip1.zip` (39.1 GB, main DICOM archive) and
+`zip2.zip` (519 MB, "dataset"/metadata archive) — both complete and verified as of
+2026-08-07.
+
+**Integration decision (2026-08-07):** stage first, don't merge directly into
+`data/adni/images/ADNI/`. Target: `data/adni/images/ADNI_missing_mri_v1_v2_staging/`
+(already created, empty). Pull command (resumable, requires `sshuttle --remote
+dev@213.14.157.19:2222 0.0.0.0/0` running so the `Olympus` SSH alias resolves):
+
+```
+rsync -avP Olympus:~/adni_download/DLB_missing_MRI_v1_v2/ data/adni/images/ADNI_missing_mri_v1_v2_staging/
+```
+
+**Not yet run** — the user asked to run the transfer themselves rather than have it run in
+this session. Local disk had 112G free against a ~40G zip pull + ~40G extracted (DICOM
+barely compresses), tight but workable if the zips are deleted after extraction. After the
+pull and extraction: verify contents, decide the merge into `data/adni/images/ADNI/` (or
+keep as a permanent separate tree), then re-run the missing-MRI check to confirm the gap
+is closed.
+
+**Refined understanding of the IP-lock mechanism** (extends section 4's note): locking
+appears to bind to whichever IP "initiates" the download by generating/clicking the
+Advanced Downloader's manifest/zip link *in-browser*, not strictly to the first raw-byte
+GET against the zip itself. Confirmed via a 291-byte error-stub zip whose embedded
+`README.txt` read: *"You have attempted to download this file from IP address
+213.14.157.19, which is different from the IP address (185.218.216.241) you used to
+initiate this download."* Practical effect: even a link generated for a collection
+already regrouped for Olympus can still lock to the local workstation's IP if the
+workstation's browser is the one that clicks the download link while not routed through
+`sshuttle`. Fix each time: have the user start `sshuttle --remote
+dev@213.14.157.19:2222 0.0.0.0/0`, verify both the workstation and Olympus report the
+same IP via `curl -s https://ifconfig.me`, then click/regenerate the specific
+zip/URL-list link in-browser while sshuttle is active, and only then let Olympus's own
+`curl` fetch it.
+
 ## Why we don't have a DLB diagnosis label
 
 ADNI's `DXSUM.DIAGNOSIS` field only has three values: `CN`, `MCI`, `Dementia` (with the
