@@ -37,8 +37,36 @@ rationale and `CLAUDE.md` for project orientation.
   `src/dlb_radiomics/interfile.py` now scale each frame by its header's `decay correction
   factor` before combining. Regenerated all 37 series' `.nii.gz` outputs and synced the
   corrected versions to Olympus.
+- **Pivoted from "reuse ADNI's processed FDG-PET/FreeSurfer outputs" to a DIY pipeline.**
+  Verified via direct IDA search that ADNI's own processed-PET/FreeSurfer-segmentation
+  products only cover ~36/534 and ~5/534 of the cohort respectively — not viable as the
+  primary path. Built the full pipeline instead: `src/dlb_radiomics/ingest.py` (DICOM/
+  ECAT7/Interfile → NIfTI, collapses 4D dynamic-frame PET to static 3D, handles series
+  directories that bundle two acquisitions), `registration.py` (native-space DKT cortical
+  labeling via `antspynet.desikan_killiany_tourville_labeling`, no atlas download needed;
+  rigid PET→T1 registration via `antspyx`), `features.py` (SUVR normalization using
+  `antspynet.deep_atropos`'s brain-stem+cerebellum labels as the reference region — DKT
+  has no pons/vermis; pyradiomics extraction resampled to 2mm isotropic), `classify.py`
+  (nested-CV: L1 logistic regression + SelectKBest + SMOTE, all refit per fold). Verified
+  end-to-end on a real subject on Olympus (GPU-accelerated, ~360s/subject).
+- **Fixed a critical cohort-building bug**: `cohort.py`'s series-selection had no
+  modality filter at all, so a subject's "PET" series could silently resolve to an actual
+  MRI directory (confirmed on real data). Fixed via DICOM Modality-tag / format-based
+  detection (`series_modality()`). Corrected core cohort is smaller: **497 subjects (118
+  positive / 379 negative)**, down from the previously-assumed 541 (126/415) — the old
+  figure was computed on the buggy manifest and is superseded.
+- Set up Olympus's GPU (NVIDIA driver + `tensorflow[and-cuda]`) and added a 24G swapfile
+  — see `CLAUDE.md` "Olympus (execution machine)" for the operational details.
 
 ## Next
+
+- **Full-cohort feature extraction is running now** (`scripts/extract_all_features.py`,
+  tmux session `extract_all` on Olympus, resumable/checkpointed to
+  `data/adni/features.csv`, failures logged to
+  `data/adni/feature_extraction_failures.log` rather than stopping the batch). ~497
+  subjects, sequential, ~1.5-2 days estimated. **Check this first in the next session** —
+  if it's finished, run `classify.nested_cv` against the result and report fold-level
+  AUC-ROC/accuracy.
 
 - **Reuse ADNI's own FDG-PET and FreeSurfer processing outputs instead of rebuilding from
   raw images.** Decided per `docs/preliminary_research/` (Jagust et al. 2010/2024 on the
