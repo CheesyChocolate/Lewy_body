@@ -1,0 +1,35 @@
+# pyradiomics extraction settings for DLB FDG-PET radiomics.
+#
+# Resampling to a common isotropic grid before feature extraction is required by IBSI
+# (and pyradiomics' own recommendation): raw ADNI PET/MRI voxel sizes vary by scanner and
+# reconstruction protocol, and texture features computed at native resolution would
+# otherwise correlate with acquisition hardware rather than biology. 2mm isotropic matches
+# ADNI's own "8mm" FDG-PET smoothing-analysis convention's spatial scale without
+# discarding as much detail as a full 8mm-equivalent Gaussian blur would.
+#
+# See docs/DECISIONS.md "Stage 5: feature extraction" for the resolution/SUVR-reference
+# decisions this file encodes.
+
+setting:
+  resampledPixelSpacing: [2, 2, 2]
+  interpolator: sitkBSpline
+  padDistance: 5
+  normalize: false # SUVR normalization is applied upstream, not by pyradiomics
+  removeOutliers: null
+  binWidth: 0.25 # SUVR units are ~0-3, unlike raw HU; a small fixed bin width keeps
+  # histogram-based features meaningful (IBSI recommends fixed bin width for PET)
+  label: 1
+  force2D: false
+
+imageType:
+  Original: {}
+  Wavelet: {}
+
+featureClass:
+  firstorder: []
+  shape: []
+  glcm: []
+  glrlm: []
+  glszm: []
+  gldm: []
+  ngtdm: []
