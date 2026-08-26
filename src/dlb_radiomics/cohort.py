@@ -12,8 +12,18 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
+import pydicom
+
+from dlb_radiomics.ingest import detect_format
 
 DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "adni"
+
+# select_closest_series rejects any candidate farther than this from the target date --
+# a defensive guard, not load-bearing against current data (every currently-resolved PET
+# series matches its target exam date exactly, see docs/DECISIONS.md "Modality mismatch
+# bug"), but stops a future/edge-case subject with no real scan on disk from silently
+# resolving to an unrelated, distant series instead of None.
+MAX_SERIES_DATE_OFFSET_DAYS = 90
 
 
 def load_cohort(data_dir: Path = DATA_DIR) -> pd.DataFrame:
@@ -68,21 +78,47 @@ def _parse_series_datetime(series_dir: Path) -> pd.Timestamp | None:
         return None
 
 
-def select_closest_series(ptid_dir: Path, target_date: pd.Timestamp) -> Path | None:
-    """Pick the scan-series directory whose acquisition date is closest to `target_date`.
+def series_modality(series_dir: Path) -> str | None:
+    """DICOM Modality-tag equivalent for a scan-series directory: "MR" or "PT".
 
-    Ties (multiple series on the same closest date) are broken deterministically by
-    image_id (the leaf directory name, e.g. "I123456") in ascending order, since no
-    principled tie-break criterion exists in the available metadata.
+    ECAT7 (.v) and Interfile (.hdr) are exclusively FDG-PET formats in this dataset
+    (every ECAT7/Interfile series description contains "FDG", confirmed across the whole
+    tree, see docs/DECISIONS.md) -- for those, format alone determines modality. DICOM
+    series carry the tag directly (0008,0060), read from a single file since it's
+    constant across a series.
+    """
+    fmt = detect_format(series_dir)
+    if fmt in ("interfile", "ecat7"):
+        return "PT"
+
+    dcm_path = next(series_dir.glob("*.dcm"), None)
+    if dcm_path is None:
+        return None
+    ds = pydicom.dcmread(dcm_path, stop_before_pixels=True)
+    return ds.get("Modality")
+
+
+def select_closest_series(
+    ptid_dir: Path, target_date: pd.Timestamp, modality: str
+) -> Path | None:
+    """Pick the `modality` ("MR" or "PT") series directory closest to `target_date`.
+
+    Ties (multiple series of the same modality on the same closest date) are broken
+    deterministically by image_id (the leaf directory name, e.g. "I123456") in ascending
+    order, since no principled tie-break criterion exists in the available metadata.
+    Candidates farther than MAX_SERIES_DATE_OFFSET_DAYS are rejected -- see its docstring.
     """
     candidates = []
     for series_dir in find_series_dirs(ptid_dir):
         acq_date = _parse_series_datetime(series_dir)
         if acq_date is None:
             continue
-        candidates.append(
-            (abs((acq_date - target_date).days), series_dir.name, series_dir)
-        )
+        offset_days = abs((acq_date - target_date).days)
+        if offset_days > MAX_SERIES_DATE_OFFSET_DAYS:
+            continue
+        if series_modality(series_dir) != modality:
+            continue
+        candidates.append((offset_days, series_dir.name, series_dir))
 
     if not candidates:
         return None
@@ -108,13 +144,13 @@ def build_final_manifest(data_dir: Path = DATA_DIR) -> pd.DataFrame:
         pet_series = None
         if pd.notna(subj["FDG_PET_EXAMDATE"]):
             pet_series = select_closest_series(
-                ptid_dir, pd.Timestamp(subj["FDG_PET_EXAMDATE"])
+                ptid_dir, pd.Timestamp(subj["FDG_PET_EXAMDATE"]), modality="PT"
             )
 
         mri_series = None
         if pd.notna(subj["MRI_EXAMDATE"]):
             mri_series = select_closest_series(
-                ptid_dir, pd.Timestamp(subj["MRI_EXAMDATE"])
+                ptid_dir, pd.Timestamp(subj["MRI_EXAMDATE"]), modality="MR"
             )
 
         rows.append(
