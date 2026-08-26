@@ -26,6 +26,7 @@ import ants
 import antspynet
 import numpy as np
 import SimpleITK as sitk
+import tensorflow as tf
 from radiomics import featureextractor
 
 from dlb_radiomics.registration import (
@@ -46,9 +47,17 @@ _extractor: featureextractor.RadiomicsFeatureExtractor | None = None
 
 
 def compute_reference_mask(t1_path: Path) -> ants.core.ants_image.ANTsImage:
-    """Whole brain-stem + cerebellum mask, used as the PET SUVR reference region."""
+    """Whole brain-stem + cerebellum mask, used as the PET SUVR reference region.
+
+    Forced onto CPU: deep_atropos's batched (8-way reorientation ensemble) prediction
+    needs more contiguous VRAM than segment_t1_dkt's single-batch call, and exceeds this
+    project's 4GB GPU even with memory growth enabled (see docs/DECISIONS.md "Stage 5").
+    Slower, but system RAM + swap comfortably absorb it and this only runs once per
+    subject.
+    """
     t1 = ants.image_read(str(t1_path))
-    atropos = antspynet.deep_atropos(t1)
+    with tf.device("/CPU:0"):
+        atropos = antspynet.deep_atropos(t1)
     seg = atropos["segmentation_image"]
     arr = seg.numpy()
     mask_arr = np.isin(arr, REFERENCE_TISSUE_LABELS).astype(np.float32)
