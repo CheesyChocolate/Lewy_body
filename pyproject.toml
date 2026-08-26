@@ -22,6 +22,7 @@ dependencies = [
     "pyradiomics>=3.1.0",
     "antspynet>=0.3.2",
     "tensorflow[and-cuda]==2.20.0",
+    "imbalanced-learn>=0.12.4",
 ]
 
 [build-system]
