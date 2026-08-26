@@ -60,14 +60,19 @@ def convert_dicom_series(series_dir: Path, out_dir: Path) -> Path:
         text=True,
     )
 
-    out_paths = list(out_dir.glob(f"{series_dir.name}*.nii.gz"))
+    out_paths = sorted(out_dir.glob(f"{series_dir.name}*.nii.gz"))
     if not out_paths:
         raise RuntimeError(f"dcm2niix produced no output for {series_dir}")
     if len(out_paths) > 1:
-        raise RuntimeError(
-            f"dcm2niix produced multiple outputs for {series_dir}: {out_paths} "
-            "(series may contain more than one acquisition)"
-        )
+        # A handful of ADNI "series" directories genuinely bundle two acquisitions
+        # under one image ID (confirmed via dcm2niix -v 2: two full, same-size DICOM
+        # sets with different AcquisitionNumber values -- e.g. two reconstruction
+        # variants of the same scan, see docs/DECISIONS.md). dcm2niix names the first
+        # acquisition it encounters with the bare series name and any later ones with
+        # an "a"/"b"/... suffix; deterministically keep the bare (first) one rather
+        # than fail the whole subject, since there's no available metadata to say
+        # which acquisition is the "right" one.
+        return out_paths[0]
     return out_paths[0]
 
 
