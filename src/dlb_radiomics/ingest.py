@@ -14,6 +14,7 @@ import subprocess
 from pathlib import Path
 
 import dcm2niix
+import nibabel as nib
 
 from dlb_radiomics.interfile import load_interfile_series
 
@@ -82,11 +83,30 @@ def convert_interfile_series_to(series_dir: Path, out_dir: Path) -> Path:
     return out_path
 
 
+def _collapse_dynamic_frames(nifti_path: Path) -> Path:
+    """Average a 4D dynamic-frame PET volume (e.g. multiple time frames) down to 3D.
+
+    Some raw ADNI FDG-PET series are dynamic (multiple time frames per voxel grid)
+    rather than a single static image, which registration.register_pet_to_t1 requires.
+    Averaging matches ADNI's own "Coreg, Avg" processed-PET convention. No-op for
+    already-3D images (the common case, and all MRI series).
+    """
+    img = nib.load(nifti_path)
+    if img.ndim <= 3:
+        return nifti_path
+
+    averaged = img.get_fdata().mean(axis=-1).astype("float32")
+    nib.Nifti1Image(averaged, img.affine).to_filename(nifti_path)
+    return nifti_path
+
+
 def ingest_series(series_dir: Path, out_dir: Path) -> Path:
     """Convert any raw scan-series directory to NIfTI, dispatching by detected format."""
     fmt = detect_format(series_dir)
     if fmt == "interfile":
-        return convert_interfile_series_to(series_dir, out_dir)
-    if fmt in ("dicom", "ecat7"):
-        return convert_dicom_series(series_dir, out_dir)
-    raise ValueError(f"Unhandled format: {fmt}")
+        out_path = convert_interfile_series_to(series_dir, out_dir)
+    elif fmt in ("dicom", "ecat7"):
+        out_path = convert_dicom_series(series_dir, out_dir)
+    else:
+        raise ValueError(f"Unhandled format: {fmt}")
+    return _collapse_dynamic_frames(out_path)
