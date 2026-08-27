@@ -64,9 +64,34 @@ rationale and `CLAUDE.md` for project orientation.
   tmux session `extract_all` on Olympus, resumable/checkpointed to
   `data/adni/features.csv`, failures logged to
   `data/adni/feature_extraction_failures.log` rather than stopping the batch). ~497
-  subjects, sequential, ~1.5-2 days estimated. **Check this first in the next session** —
-  if it's finished, run `classify.nested_cv` against the result and report fold-level
-  AUC-ROC/accuracy.
+  subjects, sequential, ~1.5-2 days estimated. Was OOM-killed once at 254/497 subjects
+  (2026-08-27 18:13, `anon-rss` ~14.8GB) with no tmux session survival and no failure log
+  entry for the killed subject; relaunched clean in a fresh `extract_all` tmux session,
+  now also tee'd to `data/adni/extract_all.log`. **Check this first in the next
+  session** — if it's finished, run `classify.nested_cv` against the result and report
+  fold-level AUC-ROC/accuracy.
+- **Fix duplicate-subject rows in cohort CSVs before trusting `features.csv`.**
+  `saa_negative_controls.csv` has 17 literal duplicate RID rows (identical exam dates,
+  everything) and `dlb_cohort_candidates.csv` has 3 — `cohort.py`'s `load_cohort()`
+  never dedupes by RID, so `build_final_manifest()` emits two manifest rows per affected
+  subject and the batch script processes both, since its "already done" skip only checks
+  against PTIDs already written at *start* time, not duplicate rows within the same
+  manifest pass. Confirmed in the first 254 extracted subjects: 5 PTIDs
+  (`068_S_2171`, `068_S_2194`, `072_S_2072`, `141_S_4232`, `941_S_4066`) already appear
+  twice in `features.csv`. Left the batch running per user decision (2026-08-27); dedupe
+  the cohort CSVs (or `load_cohort()`) and re-extract the affected subjects once the full
+  run finishes, rather than stopping now.
+- **Investigate feature non-determinism.** The 5 duplicate-PTID pairs above have
+  *wildly different* feature values (~99% of the 11,066 columns differ) despite
+  `select_closest_series` being deterministic (same target date, same tie-break by
+  `image_id`) — both duplicate-row passes should resolve to the identical series
+  directory, so the same subject's *same scan* is producing materially different
+  extracted features between the two runs. Likely cause: ANTs rigid registration
+  (`antspyx`) defaults to stochastic metric sampling with no fixed seed. If confirmed,
+  this is a reproducibility problem for the whole cohort, not just the 5 duplicates —
+  pin a registration seed (or otherwise force determinism) and spot-check a
+  re-extraction of an already-completed subject to confirm features are now stable
+  before trusting the batch's results for classification.
 
 - **Reuse ADNI's own FDG-PET and FreeSurfer processing outputs instead of rebuilding from
   raw images.** Decided per `docs/preliminary_research/` (Jagust et al. 2010/2024 on the
