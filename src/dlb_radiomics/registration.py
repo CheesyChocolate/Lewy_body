@@ -25,6 +25,7 @@ from pathlib import Path
 import ants
 import antspynet
 import numpy as np
+import tensorflow as tf
 
 # name -> (left_label, right_label), per the DKT labeling in antspynet.
 ROI_LABELS: dict[str, tuple[int, int]] = {
@@ -45,9 +46,17 @@ ROI_LABELS: dict[str, tuple[int, int]] = {
 
 
 def segment_t1_dkt(t1_path: Path) -> ants.core.ants_image.ANTsImage:
-    """Segment a raw T1 MRI into DKT cortical labels, in that MRI's native space."""
+    """Segment a raw T1 MRI into DKT cortical labels, in that MRI's native space.
+
+    Forced onto CPU: with deterministic cuDNN ops enabled (see package __init__,
+    fixing the feature-reproducibility bug), this model's convolution algorithm
+    selection uses more VRAM than this project's 4GB GPU has and OOMs outright
+    -- same tradeoff already accepted for deep_atropos in features.py. System
+    RAM + swap absorb it; slower, but only runs once per subject.
+    """
     t1 = ants.image_read(str(t1_path))
-    return antspynet.desikan_killiany_tourville_labeling(t1)
+    with tf.device("/CPU:0"):
+        return antspynet.desikan_killiany_tourville_labeling(t1)
 
 
 def register_pet_to_t1(pet_path: Path, t1_path: Path) -> ants.core.ants_image.ANTsImage:
