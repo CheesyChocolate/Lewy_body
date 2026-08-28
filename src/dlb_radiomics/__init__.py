@@ -3,9 +3,14 @@
 Sets process-wide determinism flags before any GPU/ANTs library gets imported
 elsewhere in the process, so repeated runs on the same input produce identical
 features -- see docs/KNOWLEDGE.md "Feature reproducibility" for the bug this
-fixes (duplicate-subject re-extractions diverged on ~99.5% of feature columns).
-Must live here (not in registration.py/features.py) because TF's determinism
-env vars only take effect if set before tensorflow is first imported anywhere,
+fixes (duplicate-subject re-extractions diverged on ~99% of feature columns,
+confirmed still present after only setting aff_random_sampling_rate=1.0 -- that
+alone doesn't fix it, ants.config.set_ants_deterministic below is the real
+switch: it forces single-threaded ITK, which avoids nondeterministic
+floating-point reduction order across threads, and passes a real
+--random-seed through to the underlying antsRegistration CLI call). Must
+live here (not in registration.py/features.py) because TF's determinism env
+vars only take effect if set before tensorflow is first imported anywhere,
 and antspynet imports tensorflow internally.
 """
 
@@ -27,3 +32,7 @@ try:
     tf.random.set_seed(0)
 except ImportError:
     pass
+
+import ants
+
+ants.config.set_ants_deterministic(on=True, seed_value=123)

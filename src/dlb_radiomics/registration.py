@@ -62,16 +62,13 @@ def segment_t1_dkt(t1_path: Path) -> ants.core.ants_image.ANTsImage:
 def register_pet_to_t1(pet_path: Path, t1_path: Path) -> ants.core.ants_image.ANTsImage:
     """Rigidly register a raw FDG-PET image onto its subject's native T1 MRI grid.
 
-    aff_random_sampling_rate=1.0 disables ANTs' default 20% random voxel
-    subsampling for the alignment metric -- that subsampling is the confirmed
-    source of run-to-run feature non-determinism (see docs/KNOWLEDGE.md
-    "Feature reproducibility"); using all voxels is slower but deterministic.
+    Determinism comes from ants.config.set_ants_deterministic (package
+    __init__), not from anything here -- see docs/KNOWLEDGE.md "Feature
+    reproducibility".
     """
     t1 = ants.image_read(str(t1_path))
     pet = ants.image_read(str(pet_path))
-    result = ants.registration(
-        fixed=t1, moving=pet, type_of_transform="Rigid", aff_random_sampling_rate=1.0
-    )
+    result = ants.registration(fixed=t1, moving=pet, type_of_transform="Rigid")
     return result["warpedmovout"]
 
 
