@@ -64,15 +64,27 @@ rationale and `CLAUDE.md` for project orientation.
   Root cause and fix: `docs/KNOWLEDGE.md` "Feature reproducibility" and "Cohort /
   series-selection correctness". Spot-check (re-extracted `068_S_2171` twice) now
   gives 0/11,063 differing features, bit-identical. `cohort.py`'s `load_cohort()` now
-  dedupes by RID.
-- **The existing `features.csv` (496 rows / 491 unique subjects, from the pre-fix
-  pipeline) is unreliable and must be discarded.** Delete `data/adni/features.csv`,
-  `data/adni/feature_extraction_failures.log`, and `data/adni/nifti_tmp/` on Olympus,
-  then re-run the full batch (`scripts/extract_all_features.py` in a fresh
-  `extract_all` tmux session) from scratch against the corrected, deduped 497-subject
-  manifest. **Not yet done** — do this first in the next session if it hasn't already
-  happened; only once this finishes clean should `classify.nested_cv` be run and
-  fold-level AUC-ROC/accuracy reported.
+  dedupes by RID (deduped manifest: 491 unique subjects with both modalities, not 497
+  — the old 497 figure was itself inflated by the duplicate rows).
+- **Full-cohort batch re-launched clean against the fixed pipeline (2026-08-29
+  ~00:57 UTC), running as of end of session — check status first next session.**
+  `scripts/extract_all_features.py`, tmux session `extract_all` on Olympus,
+  checkpointed to `data/adni/features.csv`. Observed pace ~234s/subject; ETA
+  **~2026-08-31 05:00 UTC** for all 491 subjects. Check with
+  `ssh Olympus "tmux has-session -t extract_all; wc -l ~/Projects/Lewy_body/data/adni/features.csv"`
+  — 492 rows (header + 491) with the tmux session gone means it finished cleanly. Only
+  once this finishes should `classify.nested_cv` be run and fold-level AUC-ROC/accuracy
+  reported. (Note: while this batch was running, its progress prints stopped appearing
+  in the tee'd log for 40+ minutes due to Python stdout buffering — not a real hang, see
+  `CLAUDE.md` "Olympus" gotcha. Don't panic-kill a healthy run over this again; check
+  `features.csv` row count, not just the log tail.)
+- **ECAT7 decay-correction fix blocked on an external PET-physics answer, not started.**
+  179 ECAT7-format PET series still use a plain frame sum with no decay correction
+  (Interfile subset already has this fix). `docs/ecat7_decay_correction_question.md`
+  (+ 2 PNGs) was written up and sent to a PET specialist 2026-08-29 to resolve genuine
+  ambiguity in the ECAT7 `corrections_applied` bitmask before implementing — guessing
+  wrong risks a third re-extraction. **Check with the user whether an answer has come
+  back before touching `src/dlb_radiomics/ingest.py`'s `_collapse_dynamic_frames`.**
 
 - **Reuse ADNI's own FDG-PET and FreeSurfer processing outputs instead of rebuilding from
   raw images.** Decided per `docs/preliminary_research/` (Jagust et al. 2010/2024 on the
