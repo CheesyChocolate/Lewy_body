@@ -1,5 +1,9 @@
 # ECAT7 decay-correction question (for PET physics review)
 
+**Status (2026-08-30): we did not wait for an answer to this before acting** — see
+"What we ended up doing" at the bottom. We're still sending this because we'd like
+confirmation (or correction) of that decision, not because it's blocking anything now.
+
 ## Question
 
 For CTI/Siemens ECAT7 format PET raw exports (ADNI-sourced), does the `corrections_applied`
@@ -71,5 +75,39 @@ This mirrors a bug already found and fixed in ADNI's Interfile-format PET export
 correction factor` header field that was blank, confirming the scanner computed but did not
 apply the correction. ECAT7 lacks that explicit field — only the `corrections_applied`
 bitmask above — so the same fix cannot be safely assumed without confirming what that bitmask
-means. Affects `src/dlb_radiomics/ingest.py`'s `_collapse_dynamic_frames` (currently a plain
-mean across frames with no decay correction) for the 179 ECAT7-sourced series in the cohort.
+means.
+
+## What we ended up doing (before getting an answer to the question above)
+
+We found indirect evidence in ADNI's own PET Technical Procedures Manual
+(adni.loni.usc.edu, publicly posted, no login needed — e.g.
+`ADNI2_PET_Tech_Manual_0142011.pdf`) that changed our confidence enough to act without
+waiting:
+
+- Our sample file's protocol matches the manual's "Siemens ECAT Exact HR+ (BGO) 63-slice
+  scanners" section exactly: FDG, 30 min, six × 5-min frames.
+- That section's reconstruction parameters say **"All corrections 'On'"** — same phrase
+  the manual uses for every scanner type's reconstruction protocol, including the
+  separate "Siemens HRRT 207-slice scanners" section (also FDG, 30 min, six × 5-min
+  frames — the scanner that produces our Interfile files).
+- We *know*, from the Interfile header's explicit blank field, that "All corrections
+  'On'" for HRRT does **not** mean cross-frame decay correction was pre-applied to the
+  raw per-frame export — it still needed the fix we already made.
+- Since ECAT7 and HRRT are described by the same manual, the same phrase, and the same
+  frame protocol, we treated this as strong evidence (not proof) that the same is true
+  for ECAT7: "All corrections 'On'" covers attenuation/scatter/normalization baked in
+  per frame during reconstruction, while the *cross-frame* correction to a common
+  reference time is left to `decay_corr_fctr`, applied downstream — exactly mirroring
+  Interfile.
+
+Based on that reasoning we implemented `src/dlb_radiomics/ecat.py` (`load_ecat_series`),
+which multiplies each frame by its own `decay_corr_fctr` before summing, wired it into
+`src/dlb_radiomics/ingest.py` in place of the old plain-mean `dcm2niix` path, verified it
+end-to-end on a real cohort subject, and re-launched the full 491-subject extraction batch
+with this fix included (previous batches, extracted before this fix, are considered
+unreliable for the 179 ECAT7-sourced subjects and were discarded).
+
+**If your answer says we got this backwards**, all 179 ECAT7-sourced subjects' PET
+features need to be re-extracted with the correction reversed — please flag that clearly
+either way, since we'd rather find out now than have it surface later as an unexplained
+inconsistency in results.

@@ -66,25 +66,31 @@ rationale and `CLAUDE.md` for project orientation.
   gives 0/11,063 differing features, bit-identical. `cohort.py`'s `load_cohort()` now
   dedupes by RID (deduped manifest: 491 unique subjects with both modalities, not 497
   — the old 497 figure was itself inflated by the duplicate rows).
-- **Full-cohort batch re-launched clean against the fixed pipeline (2026-08-29
-  ~00:57 UTC), running as of end of session — check status first next session.**
-  `scripts/extract_all_features.py`, tmux session `extract_all` on Olympus,
-  checkpointed to `data/adni/features.csv`. Observed pace ~234s/subject; ETA
-  **~2026-08-31 05:00 UTC** for all 491 subjects. Check with
+- **ECAT7 decay-correction FIXED and applied (2026-08-29), pending independent
+  confirmation.** Rather than wait on the PET specialist's answer (question still sent,
+  `docs/ecat7_decay_correction_question.md`), found strong indirect evidence in ADNI's
+  own PET Technical Procedures Manual (see `docs/KNOWLEDGE.md` "Image ingestion" and the
+  question doc's "What we ended up doing" section for the full reasoning) and
+  implemented the fix: `src/dlb_radiomics/ecat.py` (`load_ecat_series`) reads ECAT7
+  directly via `nibabel.ecat` and applies each frame's own `decay_corr_fctr` before
+  summing, mirroring the Interfile fix. Wired into `ingest.py` in place of the old
+  plain-mean `dcm2niix` path. Verified end-to-end on a real ECAT7-sourced subject
+  (`006_S_4515`, 11,063 features, no errors). **If the specialist's answer contradicts
+  this reasoning, all 179 ECAT7-sourced subjects need re-extraction with the correction
+  reversed** — check whether an answer has come back and revisit if so.
+- **Full-cohort batch re-launched clean against the fully-fixed pipeline (2026-08-29
+  ~01:55 UTC, includes the ECAT7 fix above), running as of end of session — check status
+  first next session.** `scripts/extract_all_features.py`, tmux session `extract_all` on
+  Olympus, checkpointed to `data/adni/features.csv`. ETA roughly
+  **~2026-08-31 06:00 UTC** for all 491 subjects (based on ~234s/subject pace from the
+  prior run). Check with
   `ssh Olympus "tmux has-session -t extract_all; wc -l ~/Projects/Lewy_body/data/adni/features.csv"`
   — 492 rows (header + 491) with the tmux session gone means it finished cleanly. Only
   once this finishes should `classify.nested_cv` be run and fold-level AUC-ROC/accuracy
-  reported. (Note: while this batch was running, its progress prints stopped appearing
-  in the tee'd log for 40+ minutes due to Python stdout buffering — not a real hang, see
-  `CLAUDE.md` "Olympus" gotcha. Don't panic-kill a healthy run over this again; check
-  `features.csv` row count, not just the log tail.)
-- **ECAT7 decay-correction fix blocked on an external PET-physics answer, not started.**
-  179 ECAT7-format PET series still use a plain frame sum with no decay correction
-  (Interfile subset already has this fix). `docs/ecat7_decay_correction_question.md`
-  (+ 2 PNGs) was written up and sent to a PET specialist 2026-08-29 to resolve genuine
-  ambiguity in the ECAT7 `corrections_applied` bitmask before implementing — guessing
-  wrong risks a third re-extraction. **Check with the user whether an answer has come
-  back before touching `src/dlb_radiomics/ingest.py`'s `_collapse_dynamic_frames`.**
+  reported. (Note: while an earlier run of this batch was in progress, its progress
+  prints stopped appearing in the tee'd log for 40+ minutes due to Python stdout
+  buffering — not a real hang, see `CLAUDE.md` "Olympus" gotcha. Don't panic-kill a
+  healthy run over this again; check `features.csv` row count, not just the log tail.)
 
 - **Reuse ADNI's own FDG-PET and FreeSurfer processing outputs instead of rebuilding from
   raw images.** Decided per `docs/preliminary_research/` (Jagust et al. 2010/2024 on the
