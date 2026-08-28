@@ -60,32 +60,19 @@ rationale and `CLAUDE.md` for project orientation.
 
 ## Next
 
-- **Full-cohort feature extraction finished** (2026-08-29 check): `extract_all` tmux
-  session on Olympus is gone (completed cleanly, log ends at `[242/242] ... done`).
-  `data/adni/features.csv` has 496 rows / 491 unique subjects (target was 497) and no
-  `feature_extraction_failures.log` was created — one subject's absence is unexplained,
-  worth a quick diff against the manifest. **Do not run `classify.nested_cv` against this
-  batch yet** — blocked on the non-determinism item below.
-- **Fix duplicate-subject rows in cohort CSVs before trusting `features.csv`.**
-  `saa_negative_controls.csv` has 17 literal duplicate RID rows (identical exam dates,
-  everything) and `dlb_cohort_candidates.csv` has 3 — `cohort.py`'s `load_cohort()`
-  never dedupes by RID, so `build_final_manifest()` emits two manifest rows per affected
-  subject and the batch script processes both, since its "already done" skip only checks
-  against PTIDs already written at *start* time, not duplicate rows within the same
-  manifest pass. Confirmed in `features.csv`: 5 PTIDs (`068_S_2171`, `068_S_2194`,
-  `072_S_2072`, `141_S_4232`, `941_S_4066`) appear twice. Dedupe the cohort CSVs (or
-  `load_cohort()`) — still not done.
-- **Feature non-determinism confirmed (2026-08-29), not yet root-caused or fixed.**
-  Directly compared all 11,065 feature columns for each of the 5 duplicate-PTID pairs:
-  ~99.5% differ, max relative difference ~2.0 (not floating-point jitter — values are
-  effectively unrelated between the two runs of what should be the identical source
-  series). Leading hypothesis: `antspyx` rigid PET→T1 registration's default stochastic
-  metric sampling has no fixed seed. Full writeup and consequence: `docs/KNOWLEDGE.md`
-  "Feature reproducibility". **This blocks trusting the whole 491-subject batch for
-  classification, not just the 5 duplicates** — pin a registration seed (or otherwise
-  force determinism), spot-check a re-extraction of an already-completed subject to
-  confirm features are now stable, then re-run the full batch before any classifier
-  result is reported.
+- **Feature non-determinism and duplicate-subject rows both FIXED (2026-08-29).**
+  Root cause and fix: `docs/KNOWLEDGE.md` "Feature reproducibility" and "Cohort /
+  series-selection correctness". Spot-check (re-extracted `068_S_2171` twice) now
+  gives 0/11,063 differing features, bit-identical. `cohort.py`'s `load_cohort()` now
+  dedupes by RID.
+- **The existing `features.csv` (496 rows / 491 unique subjects, from the pre-fix
+  pipeline) is unreliable and must be discarded.** Delete `data/adni/features.csv`,
+  `data/adni/feature_extraction_failures.log`, and `data/adni/nifti_tmp/` on Olympus,
+  then re-run the full batch (`scripts/extract_all_features.py` in a fresh
+  `extract_all` tmux session) from scratch against the corrected, deduped 497-subject
+  manifest. **Not yet done** — do this first in the next session if it hasn't already
+  happened; only once this finishes clean should `classify.nested_cv` be run and
+  fold-level AUC-ROC/accuracy reported.
 
 - **Reuse ADNI's own FDG-PET and FreeSurfer processing outputs instead of rebuilding from
   raw images.** Decided per `docs/preliminary_research/` (Jagust et al. 2010/2024 on the
