@@ -37,6 +37,12 @@ def load_cohort(data_dir: Path = DATA_DIR) -> pd.DataFrame:
     negative = pd.read_csv(data_dir / "saa_negative_controls.csv")
     cohort = pd.concat([positive, negative], ignore_index=True)
 
+    # Both source CSVs have literal duplicate RID rows (17 in negative, 3 in
+    # positive) -- without this, build_final_manifest() emits two rows per
+    # affected subject and the batch script double-extracts them (see
+    # docs/KNOWLEDGE.md "Cohort / series-selection correctness").
+    cohort = cohort.drop_duplicates(subset="RID", keep="first")
+
     cohort = cohort[cohort["SAA_RESULT"].isin(["Detected-1", "Not_Detected"])].copy()
     cohort["label"] = (cohort["SAA_RESULT"] == "Detected-1").astype(int)
 
