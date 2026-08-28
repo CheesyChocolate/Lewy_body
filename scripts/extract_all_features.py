@@ -42,7 +42,7 @@ def main() -> None:
 
     done = _already_done()
     remaining = manifest[~manifest["PTID"].isin(done)]
-    print(f"{len(done)} subjects already done, {len(remaining)} remaining")
+    print(f"{len(done)} subjects already done, {len(remaining)} remaining", flush=True)
 
     NIFTI_TMP_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -67,11 +67,11 @@ def main() -> None:
             )
 
             elapsed = time.time() - t0
-            print(f"[{i}/{len(remaining)}] {ptid} done in {elapsed:.0f}s")
+            print(f"[{i}/{len(remaining)}] {ptid} done in {elapsed:.0f}s", flush=True)
         except Exception as exc:  # noqa: BLE001
             with open(FAILURE_LOG_PATH, "a") as f:
                 f.write(f"{ptid}\t{exc}\n{traceback.format_exc()}\n---\n")
-            print(f"[{i}/{len(remaining)}] {ptid} FAILED: {exc}")
+            print(f"[{i}/{len(remaining)}] {ptid} FAILED: {exc}", flush=True)
         finally:
             # Only the feature row needs to persist -- clean up intermediate NIfTIs so a
             # multi-day run doesn't accumulate disk usage.
