@@ -4,8 +4,10 @@ A scan-series directory (one leaf under data/adni/images/ADNI/<PTID>/<series>/<d
 <image_id>/) is one of three raw formats: DICOM (.dcm files, the majority), ECAT7 (.v
 files), or Interfile (.hdr/.i pairs). This module picks the right converter per series
 and returns a single output NIfTI path. See docs/DECISIONS.md "Raw image format mix" for
-the format breakdown and docs/TODO.md for what's in/out of scope (ECAT7 decay correction
-is a separate, not-yet-implemented item -- this module passes ECAT7 through dcm2niix as-is).
+the format breakdown; ECAT7 and Interfile both get direct-reader conversion (ecat.py,
+interfile.py) rather than dcm2niix, so each frame's own decay-correction factor can be
+applied before combining frames -- see docs/KNOWLEDGE.md "Feature reproducibility" /
+docs/ecat7_decay_correction_question.md for the ECAT7 reasoning.
 """
 
 from __future__ import annotations
@@ -16,6 +18,7 @@ from pathlib import Path
 import dcm2niix
 import nibabel as nib
 
+from dlb_radiomics.ecat import load_ecat_series
 from dlb_radiomics.interfile import load_interfile_series
 
 DCM2NIIX_BIN = Path(dcm2niix.bin)
@@ -34,12 +37,7 @@ def detect_format(series_dir: Path) -> str:
 
 
 def convert_dicom_series(series_dir: Path, out_dir: Path) -> Path:
-    """Convert a DICOM or ECAT7 series to NIfTI via dcm2niix.
-
-    Both formats go through the same dcm2niix CLI path; ECAT7 emits a "VERY
-    experimental" warning (spatial transform reliability caveat, see
-    docs/DECISIONS.md) but produces valid output.
-    """
+    """Convert a DICOM series to NIfTI via dcm2niix."""
     series_dir = Path(series_dir)
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -88,6 +86,22 @@ def convert_interfile_series_to(series_dir: Path, out_dir: Path) -> Path:
     return out_path
 
 
+def convert_ecat_series_to(series_dir: Path, out_dir: Path) -> Path:
+    """Convert an ECAT7 series to NIfTI via the direct reader in ecat.py."""
+    series_dir = Path(series_dir)
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    v_paths = list(series_dir.glob("*.v"))
+    if len(v_paths) != 1:
+        raise ValueError(f"{series_dir}: expected exactly one .v file, found {v_paths}")
+
+    img = load_ecat_series(v_paths[0])
+    out_path = out_dir / f"{series_dir.name}.nii.gz"
+    img.to_filename(out_path)
+    return out_path
+
+
 def _collapse_dynamic_frames(nifti_path: Path) -> Path:
     """Average a 4D dynamic-frame PET volume (e.g. multiple time frames) down to 3D.
 
@@ -110,7 +124,9 @@ def ingest_series(series_dir: Path, out_dir: Path) -> Path:
     fmt = detect_format(series_dir)
     if fmt == "interfile":
         out_path = convert_interfile_series_to(series_dir, out_dir)
-    elif fmt in ("dicom", "ecat7"):
+    elif fmt == "ecat7":
+        out_path = convert_ecat_series_to(series_dir, out_dir)
+    elif fmt == "dicom":
         out_path = convert_dicom_series(series_dir, out_dir)
     else:
         raise ValueError(f"Unhandled format: {fmt}")
