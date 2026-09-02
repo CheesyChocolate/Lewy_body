@@ -95,20 +95,34 @@ rationale and `CLAUDE.md` for project orientation.
   `classify.nested_cv` run (`scripts/run_nested_cv.py`, results in
   `data/adni/nested_cv_results.csv`): **mean AUC-ROC 0.547 ± 0.074, mean accuracy 0.536 ±
   0.087** — near-chance. Before accepting "the classifier is just weak," spot-checked
-  registration/extraction quality (`scripts/qa_registration.py`, 6 subjects) instead of
-  only reasoning about it, and found a real bug: PET's field of view doesn't always fully
-  cover the cortical ROIs after registration (rigid PET->T1 registration zero-fills
-  anything outside the PET's original physical extent), silently corrupting some
-  ROI/subject feature values with no NaN or outlier to flag it. Confirmed **subject-
-  specific, not tied to any one PET format** (`docs/data_acquisition.md` section 9,
-  `docs/KNOWLEDGE.md` "PET field-of-view coverage", images `figs/pet_fov_clip_041_S_4041.png`
-  / `figs/pet_fov_ok_006_S_4363.png`). **Full-cohort audit running as of 2026-09-02**
-  (`scripts/audit_pet_fov_coverage.py`, tmux `fov_audit` on Olympus, ~6-8hr ETA, resumable,
-  output `data/adni/pet_fov_coverage_audit.csv`) to quantify how many of the 491 subjects
-  are actually affected before choosing a fix. **Check this first next session** — do not
-  re-run or trust `nested_cv` results until the audit's findings are addressed; the 0.547
-  AUC may be partly or largely an artifact of this bug rather than a true measure of the
-  FDG-PET radiomics signal.
+  registration/extraction quality instead of only reasoning about it, and this uncovered a
+  real bug (not a genuine FOV limitation as first suspected — see
+  `docs/KNOWLEDGE.md` "PET field-of-view coverage" for the full corrected reasoning trail):
+  **an ECAT7 orientation bug, FIXED and verified 2026-09-02.** `nibabel.ecat`'s affine
+  ignores the same-library data reorientation it applies based on each file's
+  `patient_orientation` header, so the two only agree for some files. Confirmed via header
+  survey + real per-ROI checks: 30 of 101 ECAT7 subjects (header code 8, unrecognized) had
+  corrupted PET orientation; the other 71 (code 3) were already correct. Fixed in
+  `src/dlb_radiomics/ecat.py` (forces the correct orientation explicitly instead of
+  trusting the header), verified end-to-end on both a previously-broken and a
+  previously-correct subject — no regression for the 71, fix confirmed for the 30.
+  Evidence/figures: `figs/pet_fov_*.png`, `figs/pet_interfile_3subject_overlay.png`.
+  - **NOT yet done: re-extract the 30 affected ECAT7 subjects** (`features.csv` on Olympus
+    still has their old/wrong values) against the fixed `ecat.py`. **Do not re-run
+    `nested_cv` until this is done.**
+  - **NEW finding, unresolved as of end of session: Interfile (22 subjects) likely has a
+    similar orientation bug.** Spot-checked 3 Interfile subjects with the real per-ROI
+    method: all 3 showed degraded coverage (46-99.6% mean, not the clean 100%-or-broken
+    split ECAT7 had) with the same top-of-head cutoff pattern. Flip-combo testing on one
+    subject (`053_S_5070`) shows the same signature as the ECAT7 bug (z/xz/yz/xyz all reach
+    100%, others don't) — but `interfile.py`'s affine is hand-built with no external
+    library to anchor which specific transform is correct (unlike ECAT7, where
+    `nibabel.ecat`'s own documented "neurological" convention settled it). A variant
+    comparison figure was queued for user review; **check `figs/` for
+    `pet_interfile_053_S_5070_variants.png`-style filenames and get a decision before
+    changing `interfile.py`.**
+  - **DICOM (368 subjects) spot-checked clean** (2/2 subjects 100% coverage, as expected
+    from `dcm2niix`'s maturity) — not being re-checked further.
 
 - **Reuse ADNI's own FDG-PET and FreeSurfer processing outputs instead of rebuilding from
   raw images.** Decided per `docs/preliminary_research/` (Jagust et al. 2010/2024 on the
