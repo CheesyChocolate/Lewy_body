@@ -106,23 +106,26 @@ rationale and `CLAUDE.md` for project orientation.
   `src/dlb_radiomics/ecat.py` (forces the correct orientation explicitly instead of
   trusting the header), verified end-to-end on both a previously-broken and a
   previously-correct subject — no regression for the 71, fix confirmed for the 30.
-  Evidence/figures: `figs/pet_fov_*.png`, `figs/pet_interfile_3subject_overlay.png`.
-  - **NOT yet done: re-extract the 30 affected ECAT7 subjects** (`features.csv` on Olympus
-    still has their old/wrong values) against the fixed `ecat.py`. **Do not re-run
-    `nested_cv` until this is done.**
-  - **NEW finding, unresolved as of end of session: Interfile (22 subjects) likely has a
-    similar orientation bug.** Spot-checked 3 Interfile subjects with the real per-ROI
-    method: all 3 showed degraded coverage (46-99.6% mean, not the clean 100%-or-broken
-    split ECAT7 had) with the same top-of-head cutoff pattern. Flip-combo testing on one
-    subject (`053_S_5070`) shows the same signature as the ECAT7 bug (z/xz/yz/xyz all reach
-    100%, others don't) — but `interfile.py`'s affine is hand-built with no external
-    library to anchor which specific transform is correct (unlike ECAT7, where
-    `nibabel.ecat`'s own documented "neurological" convention settled it). A variant
-    comparison figure was queued for user review; **check `figs/` for
-    `pet_interfile_053_S_5070_variants.png`-style filenames and get a decision before
-    changing `interfile.py`.**
-  - **DICOM (368 subjects) spot-checked clean** (2/2 subjects 100% coverage, as expected
-    from `dcm2niix`'s maturity) — not being re-checked further.
+  **A second, independent orientation bug was also found and FIXED in Interfile.**
+  `interfile.py`'s hand-built affine didn't match its raw data's y/z axis order (same
+  class of risk as ECAT7 — from-scratch code, no library backing). Unlike ECAT7's
+  per-file-header split, all 3 spot-checked Interfile subjects showed the bug (systematic,
+  not per-subject-random). User visually identified the correct fix (`yz`, a proper
+  180-degree rotation — a different transform than ECAT7's `xyz`, as expected since these
+  are two unrelated bugs). Fixed in `src/dlb_radiomics/interfile.py`
+  (`load_interfile_frame`, added a y/z flip after the reshape), verified via the real
+  `ingest_series` path: all 3 spot-checked subjects now 100%/100% (was 46.0-99.6% mean).
+  DICOM (2/2 spot-checked) was clean, no bug found there.
+  Evidence/figures: `figs/pet_fov_*.png`, `figs/pet_interfile_*.png`.
+
+  - **NOT yet done: re-extract affected subjects.** `features.csv` on Olympus still has
+    OLD/WRONG values for: **30 ECAT7 subjects** (header `patient_orientation == 8`) and
+    likely **all 22 Interfile subjects** (bug was systematic, not per-subject — safe to
+    just re-extract all 22 rather than assume only some are affected). **Do not re-run
+    `nested_cv` until both are re-extracted** — delete their rows from `features.csv` on
+    Olympus and re-run `scripts/extract_all_features.py` (resumable/append-only, skips
+    PTIDs already present, so deleting the affected rows first forces their
+    re-extraction against the now-fixed `ecat.py`/`interfile.py`).
 
 - **Reuse ADNI's own FDG-PET and FreeSurfer processing outputs instead of rebuilding from
   raw images.** Decided per `docs/preliminary_research/` (Jagust et al. 2010/2024 on the
