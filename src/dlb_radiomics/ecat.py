@@ -21,6 +21,20 @@ despite the manual saying the same "All corrections 'On'") are described identic
 that manual, and both use the same 6-frame/300s FDG acquisition protocol. If that analogy
 turns out to be wrong once the specialist responds, this needs revisiting -- see
 docs/KNOWLEDGE.md "Feature reproducibility" / ECAT7 for the full reasoning trail.
+
+Orientation (fixed 2026-09-02, see docs/KNOWLEDGE.md "PET field-of-view coverage"):
+`nibabel.ecat`'s `EcatImage.affine` is computed purely from header zooms/offsets and never
+accounts for the per-file `patient_orientation`-driven data reorientation that
+`img.get_fdata()` silently applies (`raw_data[::-1,::-1,::-1]` for codes 1/3/5/7,
+`raw_data[::,::-1,::-1]` for 0/2/4/6, no flip at all for any other/unmatched code) --
+meaning `img.get_fdata()` + `img.affine` together produce a self-consistent (data, affine)
+pair only for a subset of files, by accident of which `patient_orientation` code happens to
+combine with the raw storage layout to net out to a proper rotation. Confirmed on this
+cohort's 101 ECAT7 subjects: only codes 3 (71 subjects, gets the correct triple-axis flip
+already) and 8 (30 subjects, gets no flip and is genuinely wrong -- verified via real
+per-ROI PET/T1 registration coverage, 0-62% instead of 100%, and visually) appear at all.
+Fix: always request the triple-axis ("neurological") reorientation explicitly, regardless
+of what each file's own header says, rather than trusting the per-file default.
 """
 
 from __future__ import annotations
@@ -30,6 +44,23 @@ from pathlib import Path
 import nibabel as nib
 import numpy as np
 from nibabel import ecat
+from nibabel.ecat import get_frame_order
+
+
+def _load_oriented_frames(subheader) -> np.ndarray:
+    """Read every frame's data, always in the "neurological" (triple-axis-flipped)
+    orientation regardless of the file's own `patient_orientation` header value -- see
+    module docstring. Mirrors `EcatImageArrayProxy.__array__`'s frame-order handling.
+    """
+    nframes = subheader.get_nframes()
+    shape = subheader.get_shape()
+    frame_mapping = get_frame_order(subheader._mlist)
+    data = np.empty(shape + (nframes,))
+    for i in sorted(frame_mapping):
+        data[:, :, :, i] = subheader.data_from_fileobj(
+            frame_mapping[i][0], orientation="neurological"
+        )
+    return data
 
 
 def load_ecat_series(
@@ -46,12 +77,10 @@ def load_ecat_series(
     """
     v_path = Path(v_path)
     img = ecat.load(str(v_path))
-    data = img.get_fdata()
-    if data.ndim != 4:
-        # Some ECAT7 exports are already a single static frame; nothing to combine.
-        return nib.Nifti1Image(data.astype(np.float32), img.affine)
+    subheader = img.get_subheaders()
+    data = _load_oriented_frames(subheader)
 
-    subheaders = img.get_subheaders().subheaders
+    subheaders = subheader.subheaders
     if len(subheaders) != data.shape[-1]:
         raise ValueError(
             f"{v_path}: {len(subheaders)} subheaders but {data.shape[-1]} frames"
