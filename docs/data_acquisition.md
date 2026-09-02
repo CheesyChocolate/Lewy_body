@@ -273,6 +273,55 @@ tracking scheme. The workstation's own copies of `data/adni/images/ADNI/` (74GB)
 same zips already deleted on Olympus) are now redundant but were deliberately left in
 place pending explicit confirmation before deletion.
 
+### 9. PET field-of-view coverage gap discovered during model QA (2026-09-02)
+
+After the first full nested-CV run came back near-chance (mean AUC-ROC 0.547 on the
+491-subject `features.csv`), spot-checked registration quality on 6 subjects (mix of
+SAA+/SAA-, mix of DICOM/ECAT7/Interfile PET source format) before trusting the "weak
+signal" explanation. Found a real, previously invisible data-quality bug, not just a weak
+classifier.
+
+**The mechanism**: `register_pet_to_t1` (rigid `ants.registration`) resamples PET onto the
+T1's voxel grid, but only within the PET's own original physical extent — anything in the
+T1 volume outside where the PET was actually acquired gets zero-filled. A PET scanner's
+axial field of view is fixed by hardware (e.g. the HRRT/ECAT-Exact-HR+ scanners behind this
+project's 179 ECAT7 series have a ~153mm z-FOV: 63 slices × 2.425mm), and if the bed wasn't
+positioned to fully include the top of the head, the resulting zero-fill silently clips into
+cortex — with no error, no NaN, nothing pyradiomics would flag. It just extracts texture
+features from a mix of real PET signal and zero-padding.
+
+**Evidence** — two subjects on the *same* scanner/FOV size (ECAT7, 128×128×63 @
+2.57×2.57×2.43mm):
+
+- `041_S_4041` (SAA-positive): registered-PET nonzero fraction 59.2% overall, but per-ROI
+  coverage was badly uneven — `paracentral` only **28.3%** covered by real PET data,
+  `postcentral` **60.2%**, `superior_parietal` **60.6%**, `precuneus` **84.0%** (the rest
+  ≥98%). See `docs/pet_fov_clip_041_S_4041.png` — note the hard horizontal cutoff in the
+  PET-overlay row (middle row), and the DKT ROI contours (yellow, bottom row) extending
+  into visibly PET-signal-free territory.
+- `006_S_4363` (SAA-negative), same scanner/FOV size: registered-PET nonzero fraction
+  58.9% overall, but **every one of the 13 cortical ROIs was 100% covered**. See
+  `docs/pet_fov_ok_006_S_4363.png`.
+
+Same hardware, same overall PET-volume-fill fraction, wildly different per-ROI outcomes —
+**this is not a fixed defect of the ECAT7 format**, it's a function of how well each
+individual subject's head happened to be centered in the scanner's fixed FOV at acquisition
+time. It's silent and undetectable from the feature values alone (no NaN, no obvious
+outlier — a texture feature computed on 30% zero-padding still looks like a normal float).
+
+**Status**: a full-cohort audit (`scripts/audit_pet_fov_coverage.py`, all 491 subjects,
+resumable, output `data/adni/pet_fov_coverage_audit.csv` on Olympus) is running as of
+2026-09-02 to quantify how many subjects/ROIs are actually affected before deciding on a
+fix (candidates: exclude affected ROI-subject feature rows, intersect each ROI mask with
+the PET's actual coverage before extraction and flag/drop under-covered ROIs, or re-pull
+PET series with better FOV where ADNI has an alternative visit). This audit skips the
+expensive DKT segmentation step (the real per-subject cortical masks) in favor of a cheap
+intensity-threshholded whole-brain mask restricted to the top 35% of the head by z — a
+proxy for "the vertex-near region where the clipping was observed" — because a full,
+DKT-accurate 491-subject audit would cost the same ~60 hours as the original extraction
+batch. See `docs/KNOWLEDGE.md` "PET field-of-view coverage" for the full technical
+writeup and the audit's eventual results.
+
 ## Why we don't have a DLB diagnosis label
 
 ADNI's `DXSUM.DIAGNOSIS` field only has three values: `CN`, `MCI`, `Dementia` (with the
