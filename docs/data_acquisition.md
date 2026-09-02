@@ -296,12 +296,12 @@ features from a mix of real PET signal and zero-padding.
 - `041_S_4041` (SAA-positive): registered-PET nonzero fraction 59.2% overall, but per-ROI
   coverage was badly uneven — `paracentral` only **28.3%** covered by real PET data,
   `postcentral` **60.2%**, `superior_parietal` **60.6%**, `precuneus` **84.0%** (the rest
-  ≥98%). See `docs/pet_fov_clip_041_S_4041.png` — note the hard horizontal cutoff in the
+  ≥98%). See `figs/pet_fov_clip_041_S_4041.png` — note the hard horizontal cutoff in the
   PET-overlay row (middle row), and the DKT ROI contours (yellow, bottom row) extending
   into visibly PET-signal-free territory.
 - `006_S_4363` (SAA-negative), same scanner/FOV size: registered-PET nonzero fraction
   58.9% overall, but **every one of the 13 cortical ROIs was 100% covered**. See
-  `docs/pet_fov_ok_006_S_4363.png`.
+  `figs/pet_fov_ok_006_S_4363.png`.
 
 Same hardware, same overall PET-volume-fill fraction, wildly different per-ROI outcomes —
 **this is not a fixed defect of the ECAT7 format**, it's a function of how well each

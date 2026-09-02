@@ -101,8 +101,8 @@ rationale and `CLAUDE.md` for project orientation.
   anything outside the PET's original physical extent), silently corrupting some
   ROI/subject feature values with no NaN or outlier to flag it. Confirmed **subject-
   specific, not tied to any one PET format** (`docs/data_acquisition.md` section 9,
-  `docs/KNOWLEDGE.md` "PET field-of-view coverage", images `docs/pet_fov_clip_041_S_4041.png`
-  / `docs/pet_fov_ok_006_S_4363.png`). **Full-cohort audit running as of 2026-09-02**
+  `docs/KNOWLEDGE.md` "PET field-of-view coverage", images `figs/pet_fov_clip_041_S_4041.png`
+  / `figs/pet_fov_ok_006_S_4363.png`). **Full-cohort audit running as of 2026-09-02**
   (`scripts/audit_pet_fov_coverage.py`, tmux `fov_audit` on Olympus, ~6-8hr ETA, resumable,
   output `data/adni/pet_fov_coverage_audit.csv`) to quantify how many of the 491 subjects
   are actually affected before choosing a fix. **Check this first next session** — do not
