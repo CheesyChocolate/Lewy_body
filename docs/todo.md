@@ -91,6 +91,24 @@ rationale and `CLAUDE.md` for project orientation.
   prints stopped appearing in the tee'd log for 40+ minutes due to Python stdout
   buffering — not a real hang, see `CLAUDE.md` "Olympus" gotcha. Don't panic-kill a
   healthy run over this again; check `features.csv` row count, not just the log tail.)
+- **Extraction batch COMPLETE (2026-09-02): 491/491, `features.csv` has 492 rows.**
+  `classify.nested_cv` run (`scripts/run_nested_cv.py`, results in
+  `data/adni/nested_cv_results.csv`): **mean AUC-ROC 0.547 ± 0.074, mean accuracy 0.536 ±
+  0.087** — near-chance. Before accepting "the classifier is just weak," spot-checked
+  registration/extraction quality (`scripts/qa_registration.py`, 6 subjects) instead of
+  only reasoning about it, and found a real bug: PET's field of view doesn't always fully
+  cover the cortical ROIs after registration (rigid PET->T1 registration zero-fills
+  anything outside the PET's original physical extent), silently corrupting some
+  ROI/subject feature values with no NaN or outlier to flag it. Confirmed **subject-
+  specific, not tied to any one PET format** (`docs/data_acquisition.md` section 9,
+  `docs/KNOWLEDGE.md` "PET field-of-view coverage", images `docs/pet_fov_clip_041_S_4041.png`
+  / `docs/pet_fov_ok_006_S_4363.png`). **Full-cohort audit running as of 2026-09-02**
+  (`scripts/audit_pet_fov_coverage.py`, tmux `fov_audit` on Olympus, ~6-8hr ETA, resumable,
+  output `data/adni/pet_fov_coverage_audit.csv`) to quantify how many of the 491 subjects
+  are actually affected before choosing a fix. **Check this first next session** — do not
+  re-run or trust `nested_cv` results until the audit's findings are addressed; the 0.547
+  AUC may be partly or largely an artifact of this bug rather than a true measure of the
+  FDG-PET radiomics signal.
 
 - **Reuse ADNI's own FDG-PET and FreeSurfer processing outputs instead of rebuilding from
   raw images.** Decided per `docs/preliminary_research/` (Jagust et al. 2010/2024 on the
