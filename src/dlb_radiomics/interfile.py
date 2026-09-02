@@ -9,6 +9,15 @@ against reading the raw bytes directly: medcon produced float32 values up to ~1e
 (nonsense for PET counts), while reading the same `.i` file as little-endian float32
 gives clean values in [0, ~0.5]. Do not use medcon for these files; this module reads
 the format directly instead.
+
+Orientation (fixed 2026-09-02, see docs/KNOWLEDGE.md "PET field-of-view coverage"): the
+hand-built affine below assumes a specific voxel-storage axis order that the raw `.i`
+data doesn't actually match -- confirmed the same way as the ECAT7 orientation bug
+(flip-and-remeasure against real per-ROI PET/T1 registration coverage, then a user visual
+call on a flip-variant comparison figure, since no external library backs this from-scratch
+reader the way `nibabel.ecat` did for ECAT7). The needed correction is a y+z axis flip (a
+proper 180-degree rotation, not a mirror reflection) applied to the raw voxel array before
+it's paired with the affine below.
 """
 
 from __future__ import annotations
@@ -100,6 +109,8 @@ def load_interfile_frame(
     # Interfile/Analyze-family convention: matrix size [1] is the fastest-varying axis
     # (column-major / Fortran storage order).
     volume = raw.reshape(shape, order="F")
+    # Correct the y/z axis order to match the affine below -- see module docstring.
+    volume = np.flip(volume, axis=(1, 2))
 
     if decay_correct:
         factor_str = header.get("decay correction factor", "").strip()
