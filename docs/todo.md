@@ -118,6 +118,20 @@ rationale and `CLAUDE.md` for project orientation.
   DICOM (2/2 spot-checked) was clean, no bug found there.
   Evidence/figures: `figs/pet_fov_*.png`, `figs/pet_interfile_*.png`.
 
+  - **Verified both fixes across the actual variant space (not just 1-2 examples), per
+    user request.** Interfile has only 1 geometry variant total (22/22 subjects identical
+    shape/spacing) — already-checked subjects are fully representative. ECAT7 has 5
+    distinct (code × matrix size × slice count × pixel spacing) variants; the original
+    checks covered 2, the remaining 3 were spot-checked afterward (`109_S_4531`,
+    `024_S_4280`, `031_S_4203`) and all came back 99.9-100% coverage, consistent.
+    `figs/pet_fov_ecat7_unchecked_variants.png`.
+  - **Residual open question: left-right correctness isn't fully proven, only strongly
+    argued.** A mutual-information check (independent of coverage) came back inconclusive
+    for the same reason coverage did — global metrics are blind to laterality because the
+    brain is roughly bilaterally symmetric. Current confidence rests on external
+    convention (ECAT7) and visual judgment (both). A decisive test would need a
+    strongly-lateralized-pathology subject; not done. Revisit if downstream results ever
+    look laterality-suspicious.
   - **NOT yet done: re-extract affected subjects.** `features.csv` on Olympus still has
     OLD/WRONG values for: **30 ECAT7 subjects** (header `patient_orientation == 8`) and
     likely **all 22 Interfile subjects** (bug was systematic, not per-subject — safe to
