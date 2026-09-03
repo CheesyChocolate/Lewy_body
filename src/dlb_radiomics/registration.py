@@ -1,33 +1,42 @@
-"""Native-space ROI extraction: DKT cortical labeling + PET-to-MRI registration.
+"""Native-space ROI extraction: FastSurfer DKT+aseg segmentation + PET-to-MRI registration.
 
 For the majority of the cohort, ADNI never processed a coregistered/normalized FDG-PET
 image or a FreeSurfer segmentation (verified this session, see docs/DECISIONS.md "Pivot:
 ADNI processed-image download is not viable as the primary path") -- so both have to be
 built from the raw DICOM/ECAT7/Interfile images already on disk:
 
-1. Segment each subject's own raw T1 MRI into DKT cortical labels, in that MRI's native
-   space, via antspynet.desikan_killiany_tourville_labeling. No atlas download or template
-   warp needed -- the model does its own preprocessing (N4, brain extraction, HCP-affine)
-   internally and inverse-transforms the result back to native space.
+1. Segment each subject's own raw T1 MRI into FastSurfer's DKT+aseg labels via a
+   containerized FastSurfer run (--seg_only, partial-GPU: --device cuda
+   --viewagg_device cpu, fits Olympus's 4GB GPU). FastSurfer's own conform step
+   resamples the T1 onto a canonical 256^3 1mm grid internally; the result is
+   resampled back onto the *original* T1 grid here (nearest-neighbor, to preserve
+   integer labels) so it lines up with register_pet_to_t1's output below, which
+   stays on that same native grid. Replaces the previous antspynet
+   desikan_killiany_tourville_labeling + deep_atropos hybrid -- see
+   docs/KNOWLEDGE.md "Superseded: switched from antspynet to FastSurfer" for the full
+   rationale (accuracy, one segmentation call covering both cortical ROIs and the
+   brain-stem/cerebellum reference region, GPU fit).
 2. Rigidly register the subject's raw FDG-PET onto that same native MRI grid via antspyx,
-   so PET voxels and DKT labels line up.
+   so PET voxels and DKT+aseg labels line up.
 
 ROI_LABELS below covers the regions needed for the DLB cingulate island sign (posterior
 cingulate vs. surrounding occipital/parietal cortex, McKeith et al. 2017, Lim et al. 2009)
 plus enough of the Desikan-Killiany-Tourville set for general radiomics. Label codes
-confirmed against the antspynet source (see docs/DECISIONS.md).
+confirmed directly against FastSurfer's own FreeSurferColorLUT.txt (same IDs as the old
+antspynet labeling used -- both follow the standard FreeSurfer/DKT numbering, so no
+remapping was needed when switching segmentation tools).
 """
 
 from __future__ import annotations
 
+import os
+import subprocess
 from pathlib import Path
 
 import ants
-import antspynet
 import numpy as np
-import tensorflow as tf
 
-# name -> (left_label, right_label), per the DKT labeling in antspynet.
+# name -> (left_label, right_label), FreeSurfer/DKT atlas label IDs.
 ROI_LABELS: dict[str, tuple[int, int]] = {
     "posterior_cingulate": (1023, 2023),
     "caudal_anterior_cingulate": (1002, 2002),
@@ -44,19 +53,52 @@ ROI_LABELS: dict[str, tuple[int, int]] = {
     "cuneus": (1005, 2005),
 }
 
+FASTSURFER_IMAGE = "deepmi/fastsurfer:latest"
+FASTSURFER_OUT_DIR = Path("data/adni/fastsurfer_out")
 
-def segment_t1_dkt(t1_path: Path) -> ants.core.ants_image.ANTsImage:
-    """Segment a raw T1 MRI into DKT cortical labels, in that MRI's native space.
 
-    Forced onto CPU: with deterministic cuDNN ops enabled (see package __init__,
-    fixing the feature-reproducibility bug), this model's convolution algorithm
-    selection uses more VRAM than this project's 4GB GPU has and OOMs outright
-    -- same tradeoff already accepted for deep_atropos in features.py. System
-    RAM + swap absorb it; slower, but only runs once per subject.
+def run_fastsurfer(t1_path: Path, sid: str) -> Path:
+    """Run FastSurfer --seg_only (partial-GPU) on a subject's T1, returning the path
+    to the resulting DKT+aseg label volume (still on FastSurfer's own conformed grid).
+
+    CerebNet cerebellum sub-segmentation is left on (near-free once on GPU, per
+    docs/KNOWLEDGE.md, kept for possible future use); HypVINN hypothalamus is left off
+    (unrelated to this project's ROIs). Resumable: skips the docker run entirely if
+    the subject's output already exists, since segmentation only needs to run once per
+    subject regardless of how many times feature extraction itself is re-run. On
+    failure, see <sid>/scripts/deep-seg.log under FASTSURFER_OUT_DIR for FastSurfer's
+    own error detail -- the subprocess's own stderr is not verbose enough alone.
     """
-    t1 = ants.image_read(str(t1_path))
-    with tf.device("/CPU:0"):
-        return antspynet.desikan_killiany_tourville_labeling(t1)
+    sd = FASTSURFER_OUT_DIR.resolve()
+    sd.mkdir(parents=True, exist_ok=True)
+    out_seg = sd / sid / "mri" / "aparc.DKTatlas+aseg.deep.mgz"
+    if out_seg.exists():
+        return out_seg
+
+    t1_abs = Path(t1_path).resolve()
+    subprocess.run(
+        [
+            "sudo", "docker", "run", "--rm", "--gpus", "all",
+            "--user", f"{os.getuid()}:{os.getgid()}",
+            "-v", f"{t1_abs.parent}:/t1in",
+            "-v", f"{sd}:/data",
+            FASTSURFER_IMAGE,
+            "--t1", f"/t1in/{t1_abs.name}",
+            "--sid", sid, "--sd", "/data",
+            "--seg_only", "--device", "cuda", "--viewagg_device", "cpu", "--no_hypothal",
+        ],
+        check=True,
+    )
+    return out_seg
+
+
+def segment_t1_fastsurfer(t1_path: Path, sid: str) -> ants.core.ants_image.ANTsImage:
+    """Segment a raw T1 MRI into FastSurfer's DKT+aseg labels, resampled onto that
+    MRI's own native grid (see module docstring point 1)."""
+    seg_mgz = run_fastsurfer(t1_path, sid)
+    seg_img = ants.image_read(str(seg_mgz))
+    t1_img = ants.image_read(str(t1_path))
+    return ants.resample_image_to_target(seg_img, t1_img, interp_type="genericLabel")
 
 
 def register_pet_to_t1(pet_path: Path, t1_path: Path) -> ants.core.ants_image.ANTsImage:

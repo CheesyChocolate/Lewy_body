@@ -1,14 +1,16 @@
 """Stage 5: SUVR normalization + pyradiomics feature extraction per ROI.
 
-Ties together Stage 4's registration.py (DKT labeling, PET-to-MRI registration) with a
-PET reference region for SUVR normalization and pyradiomics texture-feature extraction.
+Ties together Stage 4's registration.py (FastSurfer DKT+aseg segmentation, PET-to-MRI
+registration) with a PET reference region for SUVR normalization and pyradiomics
+texture-feature extraction.
 
-Reference region: DKT (registration.segment_t1_dkt) is a cortical-only parcellation, with
-no pons/vermis/brainstem/cerebellum labels, so it cannot supply ADNI's own
-"Top50PonsVermis" reference convention directly. antspynet.deep_atropos's six-tissue
-segmentation gives whole brain-stem (label 5) and whole cerebellum (label 6) in the same
-native space as DKT -- the closest available substitute. See docs/DECISIONS.md "Stage 5"
-for this tradeoff.
+Reference region: brain-stem + bilateral cerebellum white matter/cortex, all FreeSurfer
+aseg labels present in the *same* FastSurfer segmentation call used for the cortical DKT
+ROIs -- unlike the old antspynet approach, no separate model/pass is needed for this (see
+docs/KNOWLEDGE.md "Superseded: switched from antspynet to FastSurfer"). Approximates
+ADNI's own "Top50PonsVermis" reference convention (whole structures rather than
+pons/vermis specifically -- same tradeoff accepted before, no off-the-shelf pons/vermis
+atlas available).
 
 Resolution handling: params/pyradiomics_params.yaml sets resampledPixelSpacing to 2mm
 isotropic, so pyradiomics itself resamples both the SUVR image and each ROI mask onto a
@@ -23,45 +25,36 @@ import tempfile
 from pathlib import Path
 
 import ants
-import antspynet
 import numpy as np
 import SimpleITK as sitk
-import tensorflow as tf
 from radiomics import featureextractor
 
 from dlb_radiomics.registration import (
     ROI_LABELS,
     mask_for_roi,
     register_pet_to_t1,
-    segment_t1_dkt,
+    segment_t1_fastsurfer,
 )
 
 PARAMS_PATH = (
     Path(__file__).resolve().parent.parent.parent / "params" / "pyradiomics_params.yaml"
 )
 
-# antspynet.deep_atropos's six-tissue labeling: 5 = brain stem, 6 = cerebellum.
-REFERENCE_TISSUE_LABELS = (5, 6)
+# FreeSurfer aseg label IDs: Brain-Stem=16, {Left,Right}-Cerebellum-{White-Matter,Cortex}
+# = 7/8/46/47. Confirmed directly against FastSurfer's own FreeSurferColorLUT.txt.
+REFERENCE_TISSUE_LABELS = (16, 7, 8, 46, 47)
 
 _extractor: featureextractor.RadiomicsFeatureExtractor | None = None
 
 
-def compute_reference_mask(t1_path: Path) -> ants.core.ants_image.ANTsImage:
-    """Whole brain-stem + cerebellum mask, used as the PET SUVR reference region.
-
-    Forced onto CPU: deep_atropos's batched (8-way reorientation ensemble) prediction
-    needs more contiguous VRAM than segment_t1_dkt's single-batch call, and exceeds this
-    project's 4GB GPU even with memory growth enabled (see docs/DECISIONS.md "Stage 5").
-    Slower, but system RAM + swap comfortably absorb it and this only runs once per
-    subject.
-    """
-    t1 = ants.image_read(str(t1_path))
-    with tf.device("/CPU:0"):
-        atropos = antspynet.deep_atropos(t1)
-    seg = atropos["segmentation_image"]
-    arr = seg.numpy()
+def compute_reference_mask(
+    label_image: ants.core.ants_image.ANTsImage,
+) -> ants.core.ants_image.ANTsImage:
+    """Whole brain-stem + cerebellum mask, sliced directly out of the FastSurfer
+    segmentation already computed for the cortical ROIs (see module docstring)."""
+    arr = label_image.numpy()
     mask_arr = np.isin(arr, REFERENCE_TISSUE_LABELS).astype(np.float32)
-    return seg.new_image_like(mask_arr)
+    return label_image.new_image_like(mask_arr)
 
 
 def compute_suvr(
@@ -119,15 +112,15 @@ def extract_roi_features(
     }
 
 
-def extract_subject_features(t1_path: Path, pet_path: Path) -> dict:
+def extract_subject_features(t1_path: Path, pet_path: Path, sid: str) -> dict:
     """Full Stage 4+5 pipeline for one subject: segment, register, normalize, extract.
 
     ROIs with an empty mask (label not present, e.g. due to a segmentation edge case)
     are skipped rather than raising, since pyradiomics itself requires a non-empty mask.
     """
-    label_image = segment_t1_dkt(t1_path)
+    label_image = segment_t1_fastsurfer(t1_path, sid)
     pet_native = register_pet_to_t1(pet_path, t1_path)
-    reference_mask = compute_reference_mask(t1_path)
+    reference_mask = compute_reference_mask(label_image)
     suvr_image = compute_suvr(pet_native, reference_mask)
 
     features: dict = {}

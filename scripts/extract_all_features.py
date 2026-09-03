@@ -54,7 +54,7 @@ def main() -> None:
             subj_dir.mkdir(exist_ok=True)
             t1_nii = ingest_series(Path(row["mri_series_dir"]), subj_dir)
             pet_nii = ingest_series(Path(row["fdg_pet_series_dir"]), subj_dir)
-            features = extract_subject_features(t1_nii, pet_nii)
+            features = extract_subject_features(t1_nii, pet_nii, ptid)
 
             row_out = {
                 "PTID": ptid,
