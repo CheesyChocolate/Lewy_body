@@ -125,6 +125,11 @@ rationale and `CLAUDE.md` for project orientation.
     checks covered 2, the remaining 3 were spot-checked afterward (`109_S_4531`,
     `024_S_4280`, `031_S_4203`) and all came back 99.9-100% coverage, consistent.
     `figs/pet_fov_ecat7_unchecked_variants.png`.
+  - **User visually re-confirmed the fix on 2026-09-03** on 2 fresh subjects per variant
+    group (14 total across all 5 ECAT7 + Interfile + a DICOM reference pair) — full PET
+    coverage to the top of the skull, no clipping, in every group. Scripts:
+    `scripts/enumerate_pet_variants.py`, `scripts/plot_pet_variant_checks.py`. Figures:
+    `figs/pet_fov_variant_recheck/`, `figs/pet_fov_variant_recheck_index.png`.
   - **Residual open question: left-right correctness isn't fully proven, only strongly
     argued.** A mutual-information check (independent of coverage) came back inconclusive
     for the same reason coverage did — global metrics are blind to laterality because the
