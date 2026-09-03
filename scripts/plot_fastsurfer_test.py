@@ -1,10 +1,14 @@
-"""Visual test of FastSurfer segmentation on a couple of real project subjects, same
-style as scripts/plot_pet_variant_checks.py's _sidebyside.png (T1 | PET per view, no
-overlay), with a third row added showing the FastSurfer DKT+aseg segmentation.
+"""Visual test of FastSurfer segmentation across all 14 subjects from the PET FOV
+variant recheck (scripts/plot_pet_variant_checks.py), same style as that script's
+_sidebyside.png (T1 | PET per view, no overlay), with a third row added showing the
+FastSurfer DKT+aseg segmentation.
 
 Ad hoc check, not part of the pipeline: confirms FastSurfer's partial-GPU --seg_only
-output looks anatomically sane on real ADNI T1s (not just the FreeSurfer tutorial
-subject) before wiring it into the pipeline for real.
+output looks anatomically sane across the same 7 raw-format variant groups already
+covered by the PET FOV recheck (2 subjects each), not just the FreeSurfer tutorial
+subject, before wiring it into the pipeline for real. Written to
+figs/pet_fov_variant_recheck/ alongside that script's _overlay.png/_sidebyside.png
+outputs, as <ptid>_fastsurfer.png.
 
 Usage (on Olympus): .venv/bin/python3 scripts/plot_fastsurfer_test.py
 """
@@ -25,9 +29,20 @@ from dlb_radiomics.registration import register_pet_to_t1
 
 NIFTI_TMP_DIR = Path("data/adni/nifti_tmp_variant_recheck")
 FS_TEST_DIR = Path("data/adni/fastsurfer_test")
-FIGS_DIR = Path("figs/fastsurfer_test")
+FIGS_DIR = Path("figs/pet_fov_variant_recheck")
 LUT_PATH = Path.home() / "fastsurfer-test" / "FreeSurferColorLUT.txt"
 VIEWS = ["sagittal", "coronal", "axial"]
+
+# Same 7 variant groups / 14 subjects as scripts/plot_pet_variant_checks.py.
+VARIANT_SUBJECTS: dict[str, tuple[str, str]] = {
+    "ecat7 code3 128x63 sp0.2574 (n=62)": ("006_S_4363", "006_S_4515"),
+    "ecat7 code8 128x63 sp0.2574 (n=24)": ("041_S_4041", "036_S_5063"),
+    "ecat7 code3 128x47 sp0.2059 (n=7)": ("109_S_4531", "109_S_4499"),
+    "ecat7 code3 256x63 sp0.2574 (n=2)": ("024_S_4280", "037_S_4770"),
+    "ecat7 code8 128x63 sp0.2059 (n=6)": ("031_S_4203", "031_S_4194"),
+    "interfile (n=22, single geometry)": ("053_S_5070", "053_S_5272"),
+    "dicom (reference, clean)": ("082_S_2307", "130_S_4660"),
+}
 
 
 def load_lut(path: Path) -> dict[int, tuple[float, float, float]]:
@@ -47,11 +62,6 @@ def load_lut(path: Path) -> dict[int, tuple[float, float, float]]:
         label_id, _name, r, g, b = parts[:5]
         lut[int(label_id)] = (int(r) / 255, int(g) / 255, int(b) / 255)
     return lut
-
-# Reuse two subjects already ingested for the PET FOV recheck (cached NIfTIs), one from
-# each of two different raw-format variants, so this doubles as a spot check that
-# FastSurfer runs cleanly on both.
-SUBJECTS = ["006_S_4363", "041_S_4041"]
 
 
 def mid_slices(arr: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -127,7 +137,7 @@ def seg_to_rgb(seg_s: np.ndarray, lut: dict[int, tuple[float, float, float]]) ->
     return np.ma.masked_array(rgb, mask=mask)
 
 
-def make_figure(ptid: str, t1_slices, pet_slices, seg_slices, lut) -> Path:
+def make_figure(ptid: str, variant: str, t1_slices, pet_slices, seg_slices, lut) -> Path:
     fig, axes = plt.subplots(3, 3, figsize=(12, 11))
     for i, view in enumerate(VIEWS):
         t1_s = np.rot90(t1_slices[i])
@@ -147,9 +157,9 @@ def make_figure(ptid: str, t1_slices, pet_slices, seg_slices, lut) -> Path:
         axes[2, i].set_title(f"{view}: FastSurfer DKT+aseg", fontsize=10)
         axes[2, i].axis("off")
 
-    fig.suptitle(f"{ptid} -- T1 / PET / FastSurfer segmentation (--seg_only, partial-GPU)")
+    fig.suptitle(f"{ptid} -- {variant}\nT1 / PET / FastSurfer segmentation (--seg_only, partial-GPU)")
     fig.tight_layout()
-    out = FIGS_DIR / f"{ptid}_fastsurfer_test.png"
+    out = FIGS_DIR / f"{ptid}_fastsurfer.png"
     fig.savefig(out, dpi=120)
     plt.close(fig)
     return out
@@ -161,22 +171,23 @@ def main() -> None:
     FIGS_DIR.mkdir(parents=True, exist_ok=True)
     lut = load_lut(LUT_PATH)
 
-    for ptid in SUBJECTS:
-        print(f"{ptid}: loading T1/PET", flush=True)
-        t1_nii, t1_arr, pet_arr = load_pair(ptid, manifest)
+    for variant, ptids in VARIANT_SUBJECTS.items():
+        for ptid in ptids:
+            print(f"{variant}: {ptid}: loading T1/PET", flush=True)
+            t1_nii, t1_arr, pet_arr = load_pair(ptid, manifest)
 
-        print(f"{ptid}: running FastSurfer --seg_only", flush=True)
-        seg_mgz = run_fastsurfer(t1_nii, ptid)
+            print(f"{ptid}: running FastSurfer --seg_only", flush=True)
+            seg_mgz = run_fastsurfer(t1_nii, ptid)
 
-        print(f"{ptid}: resampling segmentation onto T1 grid", flush=True)
-        seg_arr = load_seg_on_t1_grid(seg_mgz, t1_nii)
+            print(f"{ptid}: resampling segmentation onto T1 grid", flush=True)
+            seg_arr = load_seg_on_t1_grid(seg_mgz, t1_nii)
 
-        t1_slices = mid_slices(t1_arr)
-        pet_slices = mid_slices(pet_arr)
-        seg_slices = mid_slices(seg_arr)
+            t1_slices = mid_slices(t1_arr)
+            pet_slices = mid_slices(pet_arr)
+            seg_slices = mid_slices(seg_arr)
 
-        out = make_figure(ptid, t1_slices, pet_slices, seg_slices, lut)
-        print(f"  wrote {out}", flush=True)
+            out = make_figure(ptid, variant, t1_slices, pet_slices, seg_slices, lut)
+            print(f"  wrote {out}", flush=True)
 
 
 if __name__ == "__main__":
