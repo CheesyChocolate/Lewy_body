@@ -60,6 +60,28 @@ rationale and `CLAUDE.md` for project orientation.
 
 ## Next
 
+- **ROI scope question resolved (2026-09-05): expand from the 13 cingulate-island-sign
+  ROIs to the full DKT cortical parcellation + subcortical nuclei.** Advisor guidance on
+  `docs/roi_scope_question.md`: don't pre-decide which regions matter for the primary
+  classifier; extract from a broad set and let in-fold feature selection in the nested-CV
+  pipeline surface the signal instead. Implemented in `src/dlb_radiomics/registration.py`'s
+  `ROI_LABELS`: now 37 ROI pairs (31 DKT cortical regions, excluding the protocol's
+  non-standard/merged bankssts/corpuscallosum/frontalpole/temporalpole, plus hippocampus,
+  amygdala, thalamus, caudate, putamen, pallidum from aseg) instead of 13. Excludes
+  non-gray-matter aseg structures (ventricles, white matter, etc.) as not expected to carry
+  radiomic signal. **The stalled extraction batch below must relaunch against this new ROI
+  set, not the old 13-ROI code** — a fresh run was needed anyway (see next item).
+- **Full re-extraction batch STALLED, needs relaunch (found 2026-09-05).** The
+  491-subject FastSurfer batch launched 2026-09-03 (see below) didn't finish: the GPU
+  workstation crashed and rebooted partway through, killing the run at 199/491 subjects
+  with no surviving session and no log file. Also found and fixed a repo-history
+  divergence between the two machines' `trunk` from this same period (FastSurfer-switch
+  commits had only ever been committed on the execution machine, never pushed) —
+  reconciled, force-pushed, execution machine did a clean `git pull`. Going forward, all
+  commits happen on this workstation only; the execution machine is pull-only. Next: pull
+  the reconciled history + ROI expansion there and relaunch the batch from scratch (old
+  `features.csv` rows are all pre-ROI-expansion regardless, so nothing from the 199 is
+  reusable).
 - **Switched segmentation from antspynet to FastSurfer, `--seg_only` partial-GPU mode
   (decided + implemented + validated 2026-09-03).** antspynet's
   `desikan_killiany_tourville_labeling` + `deep_atropos` hybrid (`docs/KNOWLEDGE.md`
