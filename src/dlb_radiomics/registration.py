@@ -19,12 +19,19 @@ built from the raw DICOM/ECAT7/Interfile images already on disk:
 2. Rigidly register the subject's raw FDG-PET onto that same native MRI grid via antspyx,
    so PET voxels and DKT+aseg labels line up.
 
-ROI_LABELS below covers the regions needed for the DLB cingulate island sign (posterior
-cingulate vs. surrounding occipital/parietal cortex, McKeith et al. 2017, Lim et al. 2009)
-plus enough of the Desikan-Killiany-Tourville set for general radiomics. Label codes
-confirmed directly against FastSurfer's own FreeSurferColorLUT.txt (same IDs as the old
-antspynet labeling used -- both follow the standard FreeSurfer/DKT numbering, so no
-remapping was needed when switching segmentation tools).
+ROI_LABELS below covers the full 31-region-per-hemisphere DKT cortical parcellation plus
+six subcortical nuclei pairs (hippocampus, amygdala, thalamus, caudate, putamen, pallidum)
+-- expanded 2026-09-05 from an initial 13-ROI set scoped to just the DLB cingulate island
+sign (posterior cingulate vs. surrounding occipital/parietal cortex, McKeith et al. 2017,
+Lim et al. 2009), per advisor guidance (docs/roi_scope_question.md): don't pre-decide which
+regions matter, let in-fold feature selection in the nested-CV classifier surface the
+signal instead. Excludes the DKT protocol's non-standard/merged regions (bankssts, corpus
+callosum, frontal pole, temporal pole) and non-gray-matter aseg structures (ventricles,
+white matter, etc.) -- those aren't expected to carry radiomic signal and would only add
+noise dimensions. Label codes confirmed directly against FastSurfer's own
+FreeSurferColorLUT.txt (same IDs as the old antspynet labeling used -- both follow the
+standard FreeSurfer/DKT numbering, so no remapping was needed when switching segmentation
+tools).
 """
 
 from __future__ import annotations
@@ -38,19 +45,48 @@ import numpy as np
 
 # name -> (left_label, right_label), FreeSurfer/DKT atlas label IDs.
 ROI_LABELS: dict[str, tuple[int, int]] = {
-    "posterior_cingulate": (1023, 2023),
+    # Full 31-region DKT cortical parcellation (aparc.DKTatlas+aseg.deep.mgz), excluding
+    # bankssts/corpuscallosum/frontalpole/temporalpole (not part of the DKT31 protocol).
     "caudal_anterior_cingulate": (1002, 2002),
-    "rostral_anterior_cingulate": (1026, 2026),
-    "precuneus": (1025, 2025),
-    "lateral_occipital": (1011, 2011),
-    "inferior_parietal": (1008, 2008),
-    "superior_parietal": (1029, 2029),
-    "supramarginal": (1031, 2031),
-    "postcentral": (1022, 2022),
-    "paracentral": (1017, 2017),
-    "lingual": (1013, 2013),
-    "pericalcarine": (1021, 2021),
+    "caudal_middle_frontal": (1003, 2003),
     "cuneus": (1005, 2005),
+    "entorhinal": (1006, 2006),
+    "fusiform": (1007, 2007),
+    "inferior_parietal": (1008, 2008),
+    "inferior_temporal": (1009, 2009),
+    "isthmus_cingulate": (1010, 2010),
+    "lateral_occipital": (1011, 2011),
+    "lateral_orbitofrontal": (1012, 2012),
+    "lingual": (1013, 2013),
+    "medial_orbitofrontal": (1014, 2014),
+    "middle_temporal": (1015, 2015),
+    "parahippocampal": (1016, 2016),
+    "paracentral": (1017, 2017),
+    "pars_opercularis": (1018, 2018),
+    "pars_orbitalis": (1019, 2019),
+    "pars_triangularis": (1020, 2020),
+    "pericalcarine": (1021, 2021),
+    "postcentral": (1022, 2022),
+    "posterior_cingulate": (1023, 2023),
+    "precentral": (1024, 2024),
+    "precuneus": (1025, 2025),
+    "rostral_anterior_cingulate": (1026, 2026),
+    "rostral_middle_frontal": (1027, 2027),
+    "superior_frontal": (1028, 2028),
+    "superior_parietal": (1029, 2029),
+    "superior_temporal": (1030, 2030),
+    "supramarginal": (1031, 2031),
+    "transverse_temporal": (1034, 2034),
+    "insula": (1035, 2035),
+    # Subcortical nuclei (aseg), added alongside the full cortex per the same advisor
+    # guidance -- AD-comorbidity control (hippocampus, amygdala) and Lewy-pathology-
+    # relevant structures (thalamus, caudate, putamen, pallidum).
+    "hippocampus": (17, 53),
+    "amygdala": (18, 54),
+    "thalamus": (10, 49),
+    "caudate": (11, 50),
+    "putamen": (12, 51),
+    "pallidum": (13, 52),
 }
 
 FASTSURFER_IMAGE = "deepmi/fastsurfer:latest"
@@ -78,14 +114,31 @@ def run_fastsurfer(t1_path: Path, sid: str) -> Path:
     t1_abs = Path(t1_path).resolve()
     subprocess.run(
         [
-            "sudo", "docker", "run", "--rm", "--gpus", "all",
-            "--user", f"{os.getuid()}:{os.getgid()}",
-            "-v", f"{t1_abs.parent}:/t1in",
-            "-v", f"{sd}:/data",
+            "sudo",
+            "docker",
+            "run",
+            "--rm",
+            "--gpus",
+            "all",
+            "--user",
+            f"{os.getuid()}:{os.getgid()}",
+            "-v",
+            f"{t1_abs.parent}:/t1in",
+            "-v",
+            f"{sd}:/data",
             FASTSURFER_IMAGE,
-            "--t1", f"/t1in/{t1_abs.name}",
-            "--sid", sid, "--sd", "/data",
-            "--seg_only", "--device", "cuda", "--viewagg_device", "cpu", "--no_hypothal",
+            "--t1",
+            f"/t1in/{t1_abs.name}",
+            "--sid",
+            sid,
+            "--sd",
+            "/data",
+            "--seg_only",
+            "--device",
+            "cuda",
+            "--viewagg_device",
+            "cpu",
+            "--no_hypothal",
         ],
         check=True,
     )
