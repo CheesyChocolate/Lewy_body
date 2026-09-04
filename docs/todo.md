@@ -60,205 +60,50 @@ rationale and `CLAUDE.md` for project orientation.
 
 ## Next
 
-- **ROI scope question resolved (2026-09-05): expand from the 13 cingulate-island-sign
-  ROIs to the full DKT cortical parcellation + subcortical nuclei.** Advisor guidance on
-  `docs/roi_scope_question.md`: don't pre-decide which regions matter for the primary
-  classifier; extract from a broad set and let in-fold feature selection in the nested-CV
-  pipeline surface the signal instead. Implemented in `src/dlb_radiomics/registration.py`'s
-  `ROI_LABELS`: now 37 ROI pairs (31 DKT cortical regions, excluding the protocol's
-  non-standard/merged bankssts/corpuscallosum/frontalpole/temporalpole, plus hippocampus,
-  amygdala, thalamus, caudate, putamen, pallidum from aseg) instead of 13. Excludes
-  non-gray-matter aseg structures (ventricles, white matter, etc.) as not expected to carry
-  radiomic signal. **The stalled extraction batch below must relaunch against this new ROI
-  set, not the old 13-ROI code** — a fresh run was needed anyway (see next item).
-- **Full re-extraction batch STALLED, needs relaunch (found 2026-09-05).** The
-  491-subject FastSurfer batch launched 2026-09-03 (see below) didn't finish: the GPU
-  workstation crashed and rebooted partway through, killing the run at 199/491 subjects
-  with no surviving session and no log file. Also found and fixed a repo-history
-  divergence between the two machines' `trunk` from this same period (FastSurfer-switch
-  commits had only ever been committed on the execution machine, never pushed) —
-  reconciled, force-pushed, execution machine did a clean `git pull`. Going forward, all
-  commits happen on this workstation only; the execution machine is pull-only. Next: pull
-  the reconciled history + ROI expansion there and relaunch the batch from scratch (old
-  `features.csv` rows are all pre-ROI-expansion regardless, so nothing from the 199 is
-  reusable).
-- **Switched segmentation from antspynet to FastSurfer, `--seg_only` partial-GPU mode
-  (decided + implemented + validated 2026-09-03).** antspynet's
-  `desikan_killiany_tourville_labeling` + `deep_atropos` hybrid (`docs/KNOWLEDGE.md`
-  "Registration / segmentation") wasn't accurate enough. Switched to FastSurfer,
-  installed on Olympus via Docker (`deepmi/fastsurfer:latest`, NVIDIA Container Toolkit
-  configured for `--gpus all`), called from `registration.run_fastsurfer` with
-  `--seg_only --device cuda --viewagg_device cpu --no_hypothal` (bias-field correction and
-  CerebNet cerebellum sub-segmentation both left on; falls back to `--device cpu` only if
-  partial-GPU OOMs on Olympus's 4GB card) — one call now produces both the DKT cortical
-  labels and the aseg brain-stem/cerebellum reference region that previously needed two
-  separate antspynet models. **No ROI ID remapping was needed** (confirmed directly
-  against FastSurfer's `FreeSurferColorLUT.txt`: both tools use the same standard
-  FreeSurfer/DKT label numbering); only `REFERENCE_TISSUE_LABELS` in `features.py` changed,
-  from `deep_atropos`'s own six-tissue codes to real FreeSurfer `aseg` IDs
-  (Brain-Stem=16, Cerebellum-{WM,Cortex} L/R = 7/8/46/47). Validated before the full
-  re-extraction: determinism confirmed empirically (two independent runs, same T1,
-  0/16,777,216 differing label voxels), and a one-subject diff against the old
-  `features.csv` row (`006_S_4363`) matched exactly on feature count (11,063) with
-  physiologically plausible SUVR values, confirming no ROI mask was silently eroded by
-  the extra native-grid resampling step. Full rationale in `docs/KNOWLEDGE.md` under
-  "Superseded: switched from antspynet to FastSurfer" and its "Implementation" subsection.
-  `src/dlb_radiomics/__init__.py`'s now-dead TF/cuDNN determinism setup was removed
-  (antspynet/tensorflow no longer imported anywhere in this package); the ANTs
-  determinism fix (the one that actually matters) is untouched.
-- **Full re-extraction of `features.csv` launched (2026-09-03), supersedes the two
-  items below.** Old antspynet-based `features.csv` renamed to
-  `features_antspynet_backup.csv` (not deleted) rather than resumed-into, since the
-  segmentation method changed for every subject, not just the previously-broken ones —
-  see the ECAT7/Interfile-orientation and ECAT7-decay-correction re-extraction items
-  below, both now moot (a full fresh extraction covers them regardless of their own
-  status). Check `data/adni/features.csv` row count / tmux session status before running
-  `nested_cv` again.
-- **Feature non-determinism and duplicate-subject rows both FIXED (2026-08-29).**
-  Root cause and fix: `docs/KNOWLEDGE.md` "Feature reproducibility" and "Cohort /
-  series-selection correctness". Spot-check (re-extracted `068_S_2171` twice) now
-  gives 0/11,063 differing features, bit-identical. `cohort.py`'s `load_cohort()` now
-  dedupes by RID (deduped manifest: 491 unique subjects with both modalities, not 497
-  — the old 497 figure was itself inflated by the duplicate rows).
-- **ECAT7 decay-correction FIXED and applied (2026-08-29), pending independent
-  confirmation.** Rather than wait on the PET specialist's answer (question still sent,
-  `docs/ecat7_decay_correction_question.md`), found strong indirect evidence in ADNI's
-  own PET Technical Procedures Manual (see `docs/KNOWLEDGE.md` "Image ingestion" and the
-  question doc's "What we ended up doing" section for the full reasoning) and
-  implemented the fix: `src/dlb_radiomics/ecat.py` (`load_ecat_series`) reads ECAT7
-  directly via `nibabel.ecat` and applies each frame's own `decay_corr_fctr` before
-  summing, mirroring the Interfile fix. Wired into `ingest.py` in place of the old
-  plain-mean `dcm2niix` path. Verified end-to-end on a real ECAT7-sourced subject
-  (`006_S_4515`, 11,063 features, no errors). **If the specialist's answer contradicts
-  this reasoning, all 179 ECAT7-sourced subjects need re-extraction with the correction
-  reversed** — check whether an answer has come back and revisit if so.
-- **Full-cohort batch re-launched clean against the fully-fixed pipeline (2026-08-29
-  ~01:55 UTC, includes the ECAT7 fix above), running as of end of session — check status
-  first next session.** `scripts/extract_all_features.py`, tmux session `extract_all` on
-  Olympus, checkpointed to `data/adni/features.csv`. ETA roughly
-  **~2026-08-31 06:00 UTC** for all 491 subjects (based on ~234s/subject pace from the
-  prior run). Check with
-  `ssh Olympus "tmux has-session -t extract_all; wc -l ~/Projects/Lewy_body/data/adni/features.csv"`
-  — 492 rows (header + 491) with the tmux session gone means it finished cleanly. Only
-  once this finishes should `classify.nested_cv` be run and fold-level AUC-ROC/accuracy
-  reported. (Note: while an earlier run of this batch was in progress, its progress
-  prints stopped appearing in the tee'd log for 40+ minutes due to Python stdout
-  buffering — not a real hang, see `CLAUDE.md` "Olympus" gotcha. Don't panic-kill a
-  healthy run over this again; check `features.csv` row count, not just the log tail.)
-- **Extraction batch COMPLETE (2026-09-02): 491/491, `features.csv` has 492 rows.**
-  `classify.nested_cv` run (`scripts/run_nested_cv.py`, results in
-  `data/adni/nested_cv_results.csv`): **mean AUC-ROC 0.547 ± 0.074, mean accuracy 0.536 ±
-  0.087** — near-chance. Before accepting "the classifier is just weak," spot-checked
-  registration/extraction quality instead of only reasoning about it, and this uncovered a
-  real bug (not a genuine FOV limitation as first suspected — see
-  `docs/KNOWLEDGE.md` "PET field-of-view coverage" for the full corrected reasoning trail):
-  **an ECAT7 orientation bug, FIXED and verified 2026-09-02.** `nibabel.ecat`'s affine
-  ignores the same-library data reorientation it applies based on each file's
-  `patient_orientation` header, so the two only agree for some files. Confirmed via header
-  survey + real per-ROI checks: 30 of 101 ECAT7 subjects (header code 8, unrecognized) had
-  corrupted PET orientation; the other 71 (code 3) were already correct. Fixed in
-  `src/dlb_radiomics/ecat.py` (forces the correct orientation explicitly instead of
-  trusting the header), verified end-to-end on both a previously-broken and a
-  previously-correct subject — no regression for the 71, fix confirmed for the 30.
-  **A second, independent orientation bug was also found and FIXED in Interfile.**
-  `interfile.py`'s hand-built affine didn't match its raw data's y/z axis order (same
-  class of risk as ECAT7 — from-scratch code, no library backing). Unlike ECAT7's
-  per-file-header split, all 3 spot-checked Interfile subjects showed the bug (systematic,
-  not per-subject-random). User visually identified the correct fix (`yz`, a proper
-  180-degree rotation — a different transform than ECAT7's `xyz`, as expected since these
-  are two unrelated bugs). Fixed in `src/dlb_radiomics/interfile.py`
-  (`load_interfile_frame`, added a y/z flip after the reshape), verified via the real
-  `ingest_series` path: all 3 spot-checked subjects now 100%/100% (was 46.0-99.6% mean).
-  DICOM (2/2 spot-checked) was clean, no bug found there.
-  Evidence/figures: `figs/pet_fov_*.png`, `figs/pet_interfile_*.png`.
-
-  - **Verified both fixes across the actual variant space (not just 1-2 examples), per
-    user request.** Interfile has only 1 geometry variant total (22/22 subjects identical
-    shape/spacing) — already-checked subjects are fully representative. ECAT7 has 5
-    distinct (code × matrix size × slice count × pixel spacing) variants; the original
-    checks covered 2, the remaining 3 were spot-checked afterward (`109_S_4531`,
-    `024_S_4280`, `031_S_4203`) and all came back 99.9-100% coverage, consistent.
-    `figs/pet_fov_ecat7_unchecked_variants.png`.
-  - **User visually re-confirmed the fix on 2026-09-03** on 2 fresh subjects per variant
-    group (14 total across all 5 ECAT7 + Interfile + a DICOM reference pair) — full PET
-    coverage to the top of the skull, no clipping, in every group. Scripts:
-    `scripts/enumerate_pet_variants.py`, `scripts/plot_pet_variant_checks.py`. Figures:
-    `figs/pet_fov_variant_recheck/`, `figs/pet_fov_variant_recheck_index.png`.
-  - **Residual open question: left-right correctness isn't fully proven, only strongly
-    argued.** A mutual-information check (independent of coverage) came back inconclusive
-    for the same reason coverage did — global metrics are blind to laterality because the
-    brain is roughly bilaterally symmetric. Current confidence rests on external
-    convention (ECAT7) and visual judgment (both). A decisive test would need a
-    strongly-lateralized-pathology subject; not done. Revisit if downstream results ever
-    look laterality-suspicious.
-  - **NOT yet done: re-extract affected subjects.** `features.csv` on Olympus still has
-    OLD/WRONG values for: **30 ECAT7 subjects** (header `patient_orientation == 8`) and
-    likely **all 22 Interfile subjects** (bug was systematic, not per-subject — safe to
-    just re-extract all 22 rather than assume only some are affected). **Do not re-run
-    `nested_cv` until both are re-extracted** — delete their rows from `features.csv` on
-    Olympus and re-run `scripts/extract_all_features.py` (resumable/append-only, skips
-    PTIDs already present, so deleting the affected rows first forces their
-    re-extraction against the now-fixed `ecat.py`/`interfile.py`).
-
-- **Reuse ADNI's own FDG-PET and FreeSurfer processing outputs instead of rebuilding from
-  raw images.** Decided per `docs/preliminary_research/` (Jagust et al. 2010/2024 on the
-  ADNI PET Core's cross-scanner smoothing harmonization): coregistration/normalization
-  should extract ROI-space values from the already-harmonized `UCBERKELEYFDG_8mm` table in
-  `data/adni/tables/`, not recoregister/renormalize raw PET images with `antspyx`. ROI
-  source should be the existing FreeSurfer parcellations in `UCSFFSX51`/`UCSFFSX*`, not a
-  new atlas or fresh segmentation — with one remaining check before implementation: confirm
-  the parcellation separates posterior cingulate, occipital, and parietal cortex at
-  sufficient granularity to capture the DLB "cingulate island sign" (McKeith et al. 2017,
-  Lim et al. 2009). This resolves the "coregistration scheme" and "ROI/segmentation source"
-  open questions from the pipeline-design task below.
-- **ECAT7 frame combination still needs the same decay-correction fix.** The Interfile side
-  is done (see Done section): `load_interfile_frame`/`load_interfile_series` in
-  `src/dlb_radiomics/interfile.py` now scale each frame by its header's own `decay
-  correction factor` before combining (the HRRT scanner computes this factor but leaves it
-  unapplied in the raw export). The 179 ECAT7 series (`.v` files) still use a plain sum and
-  need the equivalent fix — ECAT's own multi-frame header format encodes a per-frame decay
-  factor too, needs the same treatment once `dcm2niix`'s ECAT path is revisited.
+- **ROI set expanded to full DKT cortex + subcortical nuclei (2026-09-05), extraction
+  batch relaunching against it.** Rationale, exact regions, label IDs:
+  `docs/KNOWLEDGE.md` "ROI scope: expanded to full DKT cortex + subcortical nuclei".
+  This coincides with the batch below needing a relaunch anyway, so both land in the same
+  fresh run.
+- **Full re-extraction batch STALLED, relaunching (found 2026-09-05).** The 491-subject
+  FastSurfer batch launched 2026-09-03 (see completed-batch history below) didn't finish:
+  the GPU execution machine crashed and rebooted partway through, killing the run at
+  199/491 subjects with no surviving session or log. Also found and fixed a repo-history
+  divergence between the two machines' `trunk` (FastSurfer-switch commits had only ever
+  been committed on the execution machine, never pushed) — reconciled, force-pushed,
+  execution machine did a clean `git pull`. **New rule going forward: all commits happen
+  on the dev workstation only; the execution machine is pull-only, never edited/committed
+  on directly.** Old `features.csv` (199 rows, pre-ROI-expansion) backed up, not deleted;
+  fresh batch launched clean.
+- **Segmentation switched from antspynet to FastSurfer (2026-09-03).** Full rationale,
+  validation, and the old antspynet-era 13-ROI implementation notes:
+  `docs/KNOWLEDGE.md` "Superseded: switched from antspynet to FastSurfer" and its
+  "Implementation" subsection.
+- **Feature non-determinism + duplicate-subject rows FIXED (2026-08-29).** Root cause,
+  fix, and verification: `docs/KNOWLEDGE.md` "Feature reproducibility" and "Cohort /
+  series-selection correctness".
+- **ECAT7 decay-correction FIXED (2026-08-29), and PET orientation bugs (ECAT7 + Interfile)
+  FIXED and visually verified across all format/geometry variants (2026-09-02/03).** Full
+  investigation, evidence, and residual left-right-correctness caveat:
+  `docs/KNOWLEDGE.md` "Image ingestion" and "PET field-of-view coverage".
+- **Extraction batch history:** launched 2026-08-29 (post dedup/determinism/ECAT7 fixes),
+  completed 2026-09-02 (491/491) at near-chance AUC-ROC (0.547 ± 0.074) — which is what
+  triggered the FOV/orientation investigation above — then superseded by the FastSurfer
+  switch and now the ROI expansion. **Do not run `classify.nested_cv` until the current
+  (ROI-expanded, post-crash-relaunch) batch finishes.**
 - **Classifier stage must use nested cross-validation.** Literature review
   (Demircioğlu 2021/2024) found that feature selection or class-balancing (oversampling the
-  SAA-positive minority, 126 vs 415) performed on the full dataset before splitting into CV
-  folds inflates reported performance by up to 0.15 AUC-ROC / 0.17 accuracy — both steps
-  must be fit independently inside each training fold. Report performance as a distribution
-  across outer folds with confidence intervals, not a single point estimate, given the
-  cohort size (~541) is in the range where single-split estimates are unstable. Not yet
-  implemented (no classifier code exists yet).
-
+  SAA-positive minority) performed outside a per-fold loop inflates reported performance by
+  up to 0.15 AUC-ROC / 0.17 accuracy. Implemented in `classify.py`'s `nested_cv`.
 - **Extract to one scan per subject.** Both image sets currently include every visit where a
   qualifying MRI/FDG-PET scan exists, not just the one closest to each subject's SAA draw
-  date. Before feature extraction, filter down using the per-subject target dates already in
-  `dlb_cohort_candidates.csv` / `saa_negative_controls.csv` (columns `FDG_PET_EXAMDATE`,
-  `MRI_EXAMDATE`) — keep the other-visit scans on disk in case a longitudinal check is wanted
-  later, just don't feed them all into the initial model. PET side is largely clean (541/541
-  exact-date matches, only 6 subjects need a same-date multi-series tie-break); MRI side is
-  blocked on the gap above.
-- **Design the radiomics pipeline.** No `src/` code exists yet for this project. Needs: DICOM →
-  NIfTI conversion, PET/MRI co-registration (a la spatial normalization to an atlas or to the
-  MRI), tumor/region segmentation or atlas-based ROI extraction, radiomic feature extraction
-  (e.g. PyRadiomics), classifier (SAA+ vs SAA− as the primary label). Tooling decided:
-  `dcm2niix` + `SimpleITK` + `antspyx` + `pyradiomics`, which forced pinning the project to
-  Python 3.9 exactly (pyradiomics has no working build/wheel past cp39; see git log and,
-  while the design task is in progress, `docs/DECISIONS.md`). Coregistration scheme and
-  ROI/atlas source are now resolved (see item above); directory layout for `src/` and the
-  concrete PyRadiomics feature-class list are still open (feature-class defaults from IBSI,
-  no literature reason found to narrow them — see `docs/preliminary_research/`). A small
-  fraction of raw images (37 series, 25 subjects) were in an Interfile format neither
-  `dcm2niix` nor `SimpleITK` can read, and `medcon` turned out to silently corrupt the pixel
-  values for this variant — wrote a direct reader instead (`src/dlb_radiomics/interfile.py`
-  + `scripts/convert_interfile_series.py`), ran successfully against all 37 series. Also
-  confirmed FDG-PET acquisitions (at least the Interfile/ECAT ones) are 6-frame dynamic
-  scans; frame combination needs a decay-correction fix, see item above.
+  date. Per-subject target dates already exist in `dlb_cohort_candidates.csv` /
+  `saa_negative_controls.csv` (`FDG_PET_EXAMDATE`, `MRI_EXAMDATE`) for this filter. PET side
+  is largely clean (541/541 exact-date matches, 6 need a same-date tie-break); MRI side
+  status needs rechecking against the current cohort manifest.
 - **OASIS data likely unused.** `data/oasis/` (oasis-1, oasis-2, oasis-scripts) is staged but
   probably won't be wired into the pipeline — ADNI alone covers the current plan. Left in
   place rather than deleted in case an sMRI-only external validation need comes up later.
-- **Rewrite the differential/statistical framing for the new modality.** The old project's
-  `docs/knowledge.md` (now archived) had running notes on biological background and stats
-  choices for CSF proteomics — a fresh `docs/knowledge.md` should start once non-obvious
-  radiomics/imaging decisions start accumulating (e.g. why a given atlas, why a given
-  normalization scheme).
 
 ## Deferred / not started
 
