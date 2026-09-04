@@ -60,6 +60,38 @@ rationale and `CLAUDE.md` for project orientation.
 
 ## Next
 
+- **Switched segmentation from antspynet to FastSurfer, `--seg_only` partial-GPU mode
+  (decided + implemented + validated 2026-09-03).** antspynet's
+  `desikan_killiany_tourville_labeling` + `deep_atropos` hybrid (`docs/KNOWLEDGE.md`
+  "Registration / segmentation") wasn't accurate enough. Switched to FastSurfer,
+  installed on Olympus via Docker (`deepmi/fastsurfer:latest`, NVIDIA Container Toolkit
+  configured for `--gpus all`), called from `registration.run_fastsurfer` with
+  `--seg_only --device cuda --viewagg_device cpu --no_hypothal` (bias-field correction and
+  CerebNet cerebellum sub-segmentation both left on; falls back to `--device cpu` only if
+  partial-GPU OOMs on Olympus's 4GB card) — one call now produces both the DKT cortical
+  labels and the aseg brain-stem/cerebellum reference region that previously needed two
+  separate antspynet models. **No ROI ID remapping was needed** (confirmed directly
+  against FastSurfer's `FreeSurferColorLUT.txt`: both tools use the same standard
+  FreeSurfer/DKT label numbering); only `REFERENCE_TISSUE_LABELS` in `features.py` changed,
+  from `deep_atropos`'s own six-tissue codes to real FreeSurfer `aseg` IDs
+  (Brain-Stem=16, Cerebellum-{WM,Cortex} L/R = 7/8/46/47). Validated before the full
+  re-extraction: determinism confirmed empirically (two independent runs, same T1,
+  0/16,777,216 differing label voxels), and a one-subject diff against the old
+  `features.csv` row (`006_S_4363`) matched exactly on feature count (11,063) with
+  physiologically plausible SUVR values, confirming no ROI mask was silently eroded by
+  the extra native-grid resampling step. Full rationale in `docs/KNOWLEDGE.md` under
+  "Superseded: switched from antspynet to FastSurfer" and its "Implementation" subsection.
+  `src/dlb_radiomics/__init__.py`'s now-dead TF/cuDNN determinism setup was removed
+  (antspynet/tensorflow no longer imported anywhere in this package); the ANTs
+  determinism fix (the one that actually matters) is untouched.
+- **Full re-extraction of `features.csv` launched (2026-09-03), supersedes the two
+  items below.** Old antspynet-based `features.csv` renamed to
+  `features_antspynet_backup.csv` (not deleted) rather than resumed-into, since the
+  segmentation method changed for every subject, not just the previously-broken ones —
+  see the ECAT7/Interfile-orientation and ECAT7-decay-correction re-extraction items
+  below, both now moot (a full fresh extraction covers them regardless of their own
+  status). Check `data/adni/features.csv` row count / tmux session status before running
+  `nested_cv` again.
 - **Feature non-determinism and duplicate-subject rows both FIXED (2026-08-29).**
   Root cause and fix: `docs/KNOWLEDGE.md` "Feature reproducibility" and "Cohort /
   series-selection correctness". Spot-check (re-extracted `068_S_2171` twice) now
