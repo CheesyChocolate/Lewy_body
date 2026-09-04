@@ -1,6 +1,6 @@
 """Stage 6: nested-cross-validation classifier.
 
-Demircioglu 2021/2024 (docs/preliminary_research/, docs/todo.md) found that feature
+Demircioglu 2021/2024 (docs/preliminary_research/, docs/TODO.md) found that feature
 selection or class-balancing performed outside a per-fold nested CV loop inflates
 reported AUC-ROC by up to 0.15 / accuracy by up to 0.17, an effect that grows with a
 high feature-to-subject ratio and class imbalance -- both apply here (hundreds of

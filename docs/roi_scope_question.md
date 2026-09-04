@@ -39,7 +39,7 @@ The tradeoff we see: adding ROIs is "free" on the segmentation side, but each ad
 pair adds roughly another ~850 pyradiomics feature columns (13 ROIs currently produce
 11,063 features total), which worsens an already tight features-to-samples ratio for the
 nested-CV classifier at this cohort size (~541 subjects, 126 SAA-positive). Feature
-selection is already planned to run inside each CV fold (per `docs/todo.md`'s nested-CV
+selection is already planned to run inside each CV fold (per `docs/TODO.md`'s nested-CV
 plan), so more candidate features isn't necessarily wrong, but it's a real cost we'd like
 guidance on before deciding whether to expand scope.
 

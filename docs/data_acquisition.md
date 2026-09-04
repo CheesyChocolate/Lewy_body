@@ -158,7 +158,7 @@ Interfile header's `frame definition := 300*6`), not static images.
   `scripts/convert_interfile_series.py`, run successfully against all 37 series
   (2026-08-07). Frames are combined into a static volume by raw-count sum by default
   (not decay-corrected — an open question, applies to the ECAT `.v` series too, see
-  `docs/todo.md`).
+  `docs/TODO.md`).
 
 ## What we deliberately did not get, and why
 
@@ -189,7 +189,7 @@ Interfile header's `frame definition := 300*6`), not static images.
 
 ### 7. Missing-MRI gap discovery and remediation (2026-08-07)
 
-While working on "reduce images to one visit per subject" (`docs/todo.md`), found that
+While working on "reduce images to one visit per subject" (`docs/TODO.md`), found that
 **376 of 541 cohort rows (376/534 unique RIDs, ~69%) had no raw MRI on disk at all**,
 only FDG-PET — despite `has_mri` being true in `dlb_cohort_candidates.csv` /
 `saa_negative_controls.csv`. Root cause: `has_mri` is derived from ADNI's precomputed
